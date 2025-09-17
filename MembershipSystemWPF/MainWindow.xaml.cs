@@ -4,8 +4,8 @@ using Serilog;
 using Serilog.Core;
 using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
+using Forms = System.Windows.Forms;
 
 namespace MembershipSystemWPF
 {
@@ -17,54 +17,37 @@ namespace MembershipSystemWPF
         private HubConnection _hubConnection = null!;
         private const string _configFileName = "config.json";
         private Logger _fileLogger = null!;
-        private CancellationTokenSource _connectionCts = new();
+        private CancellationTokenSource _connectionCts = null!;
+        private Forms.NotifyIcon _notifyIcon = null!;
         public MainWindow()
         {
             InitializeComponent();
             InitializeLogger();
-            //CleanupOldLogs();
-        }
 
-        private void CleanupOldLogs()
+            _notifyIcon = new Forms.NotifyIcon
+            {
+                Icon = new System.Drawing.Icon("Resources/favicon.ico"),
+                Visible = true,
+                Text = "限时会员网关"
+            };
+            _notifyIcon.DoubleClick += (s, e) => ShowMainWindow();
+        }
+        private void Window_StateChanged(object sender, EventArgs e)
         {
-            Log("正在清理旧日志文件...");
-            try
+            if (this.WindowState == WindowState.Minimized)
             {
-                string logDirectory = Path.Combine(AppContext.BaseDirectory, "Logs");
-                if (!Directory.Exists(logDirectory))
-                {
-                    Log("日志目录不存在，无需清理旧日志文件。");
-                    return;
-                }
-                var files = Directory.GetFiles(logDirectory, "log-*.txt");
-                int deletedCount = 0;
-                foreach (var file in files)
-                {
-                    var fileInfo = new FileInfo(file);
-                    if (fileInfo.LastWriteTime < DateTime.Now.AddDays(-30))
-                    {
-                        fileInfo.Delete();
-                        deletedCount++;
-                    }
-                }
-                if (deletedCount > 0)
-                {
-                    Log($"成功删除了 {deletedCount} 个过期的日志文件。");
-                }
-                else
-                {
-                    Log("没有找到需要删除的过期日志文件。");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"清理旧日志文件时发生错误: {ex.Message}");
+                this.Hide();
             }
         }
-
+        private void ShowMainWindow()
+        {
+            this.Show();
+            this.WindowState = WindowState.Normal;
+            this.Activate();
+        }
         private void InitializeLogger()
         {
-            string logDirectory = Path.Combine(AppContext.BaseDirectory, "Logs");
+            string logDirectory = Path.Combine(GetExeCurrentPath(), "Logs");
             _fileLogger = new LoggerConfiguration()
                 .MinimumLevel.Information()
                 .WriteTo.File(path: Path.Combine(logDirectory, "log-.txt"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30
@@ -81,11 +64,15 @@ namespace MembershipSystemWPF
                 Log("配置加载成功 ，开始自动连接...");
                 await StartConnectionProcess();
             }
+            if (string.IsNullOrEmpty(DeviceName.Text))
+            {
+                DeviceName.Text = "PC-" + Environment.MachineName;
+            }
         }
 
         private async Task LoadConfigAndConnectAsync()
         {
-            string configFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _configFileName);
+            string configFilePath = Path.Combine(GetExeCurrentPath(), _configFileName);
             Log($"正在从{configFilePath}加载配置...");
             if (!File.Exists(configFilePath))
             {
@@ -102,6 +89,7 @@ namespace MembershipSystemWPF
                 }
                 var config = JsonSerializer.Deserialize<ConnectionConfig>(jsonString);
                 ServerUrlTextBox.Text = config?.ServerUrl ?? string.Empty;
+                DeviceName.Text = config?.DeviceName ?? string.Empty;
                 ApiKeyTextBox.Text = config?.ApiKey ?? string.Empty;
                 await Task.CompletedTask;
             }
@@ -135,6 +123,7 @@ namespace MembershipSystemWPF
             ConnectButton.Content = "断开连接";
             ConnectButton.IsEnabled = true;
             ServerUrlTextBox.IsEnabled = false;
+            DeviceName.IsEnabled = false;
             ApiKeyTextBox.IsEnabled = false;
             SaveButton.IsEnabled = false;
 
@@ -154,6 +143,7 @@ namespace MembershipSystemWPF
             ConnectButton.Content = "连接";
             ConnectButton.IsEnabled = true;
             ServerUrlTextBox.IsEnabled = true;
+            DeviceName.IsEnabled = true;
             ApiKeyTextBox.IsEnabled = true;
             SaveButton.IsEnabled = true;
             Log("连接已手动断开.");
@@ -163,51 +153,66 @@ namespace MembershipSystemWPF
         {
             while (!token.IsCancellationRequested)
             {
+                HubConnection? hubConnection = null;
+                var connectionTcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var cancellationTokenRegistration = token.Register(() => connectionTcs.TrySetResult(token));
                 try
                 {
                     string serverUrl = Dispatcher.Invoke(() => ServerUrlTextBox.Text);
                     string apiKey = Dispatcher.Invoke(() => ApiKeyTextBox.Text);
-                    string serverUrlFull = $"http://{ServerUrlTextBox.Text}/commandhub";
-                    string urlWithKey = $"{serverUrlFull}?apiKey={Uri.EscapeDataString(apiKey)}";
+                    string deviceName = Dispatcher.Invoke(() => DeviceName.Text);
+                    string serverUrlFull = $"{serverUrl}/filePushHub";
+                    string urlWithKey = $"{serverUrlFull}?apiKey={Uri.EscapeDataString(apiKey)}&deviceName={deviceName}";
 
-                    _hubConnection = new HubConnectionBuilder()
+                    hubConnection = new HubConnectionBuilder()
                         .WithUrl(urlWithKey)
+                        .WithAutomaticReconnect()
                         .Build();
 
-                    _hubConnection.Closed += (error) =>
+                    hubConnection.Closed += (error) =>
                     {
                         if (!token.IsCancellationRequested)
                         {
                             Log($"与服务器的连接意外断开: {error?.Message}");
                         }
-
+                        connectionTcs.TrySetResult(null!);
                         return Task.CompletedTask;
                     };
 
-                    _hubConnection.On<FileWriteCommand>("ReceiveWriteCommand", async (command) =>
+                    hubConnection.On<FileWriteCommand>("ReceiveWriteCommand", async (command) =>
                     {
                         await ModifyFile_Append(command.FilePath, command.Content, command.LogMessage);
                     });
 
-                    _hubConnection.On<FileDeleteCommand>("ReceiveDeleteCommand", async (command) =>
+                    hubConnection.On<FileDeleteCommand>("ReceiveDeleteCommand", async (command) =>
                     {
                         await RemoveContentFromFile(command.FilePath, command.ContentToRemove, command.LogMessage);
                     });
 
-                    await _hubConnection.StartAsync(token);
+                    Log("正在尝试连接到服务器...");
+                    await hubConnection.StartAsync(token);
                     Log("成功连接到服务器！正在等待指令...");
+                    await connectionTcs.Task;
 
-                    var tcs = new TaskCompletionSource<object>();
-                    token.Register(() => tcs.TrySetResult(null!));
-                    await tcs.Task;
+                    //var tcs = new TaskCompletionSource<object>();
+                    //token.Register(() => tcs.TrySetResult(null!));
+                    //await tcs.Task;
                 }
                 catch (OperationCanceledException)
                 {
+                    Log("连接过程已取消。");
                     break;
                 }
                 catch (Exception ex)
                 {
                     Log($"连接失败: {ex.Message}");
+                }
+                finally
+                {
+                    if (hubConnection != null)
+                    {
+                        await hubConnection.DisposeAsync();
+                    }
                 }
                 if (!token.IsCancellationRequested)
                 {
@@ -219,6 +224,7 @@ namespace MembershipSystemWPF
                     }
                     catch (OperationCanceledException)
                     {
+                        Log("连接重试已取消。");
                         break;
                     }
                 }
@@ -240,7 +246,7 @@ namespace MembershipSystemWPF
                     Log("文件内容中不包含要删除的内容，跳过操作。");
                     return;
                 }
-                if(string.IsNullOrEmpty(originalContent)|| string.IsNullOrEmpty(contentToRemove))
+                if (string.IsNullOrEmpty(originalContent) || string.IsNullOrEmpty(contentToRemove))
                 {
                     Log("文件内容或要删除的内容为空，跳过操作。");
                     return;
@@ -265,6 +271,11 @@ namespace MembershipSystemWPF
                     Directory.CreateDirectory(directoryPath);
                     Log($"创建目录: {directoryPath}");
                 }
+                if (!File.Exists(filePath))
+                {
+                    await File.WriteAllTextAsync(filePath, string.Empty);
+                    Log($"创建新文件: {filePath}");
+                }
                 string originalContent = await File.ReadAllTextAsync(filePath);
                 if (originalContent.Contains(content))
                 {
@@ -287,20 +298,31 @@ namespace MembershipSystemWPF
                 var configToSave = new ConnectionConfig
                 {
                     ServerUrl = ServerUrlTextBox.Text,
+                    DeviceName = DeviceName.Text,
                     ApiKey = ApiKeyTextBox.Text
                 };
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string jsonString = JsonSerializer.Serialize(configToSave, options);
 
-                string configFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _configFileName);
+                string configFilePath = Path.Combine(GetExeCurrentPath(), _configFileName);
                 await File.WriteAllTextAsync(configFilePath, jsonString);
-                Log("配置已成功保持到 config.json 文件.");
+                Log($"配置已成功保持到 {configFilePath} 文件.");
             }
             catch (Exception ex)
             {
                 Log($"保存配置文件时发生错误: {ex.Message}");
             }
+        }
+
+        private static string GetExeCurrentPath()
+        {
+            string originalExePath = Environment.ProcessPath!;
+            if (originalExePath != null)
+            {
+                return Path.GetDirectoryName(originalExePath) ?? AppContext.BaseDirectory;
+            }
+            return AppContext.BaseDirectory;
         }
 
         private void ClearButton_Click(object sender, RoutedEventArgs e)
@@ -319,13 +341,18 @@ namespace MembershipSystemWPF
             });
         }
 
-        private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private async void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            // 销毁托盘图标
+            if (_notifyIcon != null)
+            {
+                _notifyIcon.Dispose();
+                _notifyIcon = null!; // 可选，好习惯
+            }
             if (_hubConnection != null)
             {
                 await _hubConnection.DisposeAsync();
             }
         }
-
     }
 }
