@@ -8,6 +8,7 @@ bld.Services.AddSignalR();
 bld.Services.AddSingleton<IUserIdProvider, ApiKeyBasedUserIdProvider>();
 bld.Services.AddSingleton<IConnectionManager, InMemoryConnectionManager>();
 bld.Services.AddScoped<ICdkService, CdkService>();
+bld.Services.AddScoped<IPathService, PathService>();
 bld.Services.AddHostedService<ExpiredMembershipProcessor>();
 
 bld.Services.AddRateLimiter(options =>
@@ -20,7 +21,7 @@ bld.Services.AddRateLimiter(options =>
         {
             retryAfter = TimeSpan.FromSeconds(60);
         }
-        await context.HttpContext.Response.WriteAsync($"ÇëÇó¹ıÓÚÆµ·±¡£ÇëÔÚ {retryAfter.TotalSeconds} ÃëºóÖØÊÔ¡£", ct);
+        await context.HttpContext.Response.WriteAsync($"è¯·æ±‚è¿‡äºé¢‘ç¹ï¼Œè¯· {retryAfter.TotalSeconds} ç§’åé‡è¯•ã€‚", ct);
     };
 
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>

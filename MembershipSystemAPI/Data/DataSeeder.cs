@@ -24,7 +24,8 @@ public static class DataSeeder
                     Role = defaultAdminRole,
                     IsActive = true,
                     CreatedAt = DateTimeOffset.UtcNow,
-                    ApiKey = new ApiKey()
+                    ApiKey = new ApiKey(),
+                    PathConfiguration = new PathConfiguration()
                 };
                 await dbContext.Users.AddAsync(adminUser);
                 await dbContext.SaveChangesAsync();

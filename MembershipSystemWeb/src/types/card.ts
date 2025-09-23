@@ -9,6 +9,6 @@ export interface MemberCard {
   endTime: Date
 }
 
-export type CreateCardData = Omit<MemberCard, 'id' | 'endTime' | 'cdk'> & { cdkFilePath: string }
+export type CreateCardData = Omit<MemberCard, 'id' | 'endTime' | 'cdk'> 
 
 export type UpdateCardData = Partial<CreateCardData>

@@ -4,9 +4,11 @@ public class SendAppendCommandEndpoint : Endpoint<SendAppendRequest, SendAppendR
 {
     public IHubContext<FilePushHub> HubContext { get; set; } = null!;
     private readonly MemDbContext _dbContext;
-    public SendAppendCommandEndpoint(MemDbContext dbContext)
+    private readonly IPathService _pathService;
+    public SendAppendCommandEndpoint(MemDbContext dbContext, IPathService pathService)
     {
         _dbContext = dbContext;
+        _pathService = pathService;
     }
 
     public override void Configure()
@@ -15,8 +17,8 @@ public class SendAppendCommandEndpoint : Endpoint<SendAppendRequest, SendAppendR
         Roles("User", "Admin");
         Summary(s =>
         {
-            s.Summary = "向当前用户的客户端发送文件删除指令";
-            s.Description = "此端点需要用户认证。它会查找与当前用户关联的 API Key，并向使用该 Key 连接的 SignalR 客户端发送一条文件删除命令。";
+            s.Summary = "向当前用户的客户端发送文件追加指令";
+            s.Description = "此端点需要用户认证。它会查找与当前用户关联的 API Key，并向使用该 Key 连接的 SignalR 客户端发送一条文件追加命令。";
         });
     }
     public override async Task HandleAsync(SendAppendRequest req, CancellationToken ct)
@@ -33,11 +35,31 @@ public class SendAppendCommandEndpoint : Endpoint<SendAppendRequest, SendAppendR
                 await Send.NotFoundAsync(ct);
                 return;
             }
-            var fileName = req.FilePath;
+
+            // Validate and construct the file path using PathService
+            string fullPath;
+            try
+            {
+                // Extract just the file name part to prevent path traversal
+                string fileName = Path.GetFileName(req.FilePath);
+                if (string.IsNullOrEmpty(fileName))
+                {
+                    await Send.StringAsync("无效的文件路径。", 400,cancellation: ct);
+                    return;
+                }
+
+                fullPath = _pathService.GetFullFilePath(currentUserGuid, fileName);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "构建文件路径时发生错误");
+                await Send.StringAsync("文件路径处理失败。", 500,cancellation: ct);
+                return;
+            }
 
             var command = new SendAppendRequest
             {
-                FilePath = req.FilePath,
+                FilePath = fullPath,
                 Content = req.Content + Environment.NewLine,
                 LogMessage = req.LogMessage
             };

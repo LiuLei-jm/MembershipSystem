@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MembershipSystemAPI.Migrations
 {
     [DbContext(typeof(MemDbContext))]
-    [Migration("20250920012118_InitCreate")]
+    [Migration("20250923055655_InitCreate")]
     partial class InitCreate
     {
         /// <inheritdoc />
@@ -93,6 +93,43 @@ namespace MembershipSystemAPI.Migrations
                     b.ToTable("MembershipCards");
                 });
 
+            modelBuilder.Entity("MembershipSystemAPI.Models.PathConfiguration", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("AllowCustomPaths")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BasePath")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MembershipCardFilePath")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("PathConfigurations");
+                });
+
             modelBuilder.Entity("MembershipSystemAPI.Models.User", b =>
                 {
                     b.Property<string>("Id")
@@ -113,10 +150,6 @@ namespace MembershipSystemAPI.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("MembershipCardPath")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PasswordHash")
@@ -164,12 +197,26 @@ namespace MembershipSystemAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MembershipSystemAPI.Models.PathConfiguration", b =>
+                {
+                    b.HasOne("MembershipSystemAPI.Models.User", "User")
+                        .WithOne("PathConfiguration")
+                        .HasForeignKey("MembershipSystemAPI.Models.PathConfiguration", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("MembershipSystemAPI.Models.User", b =>
                 {
                     b.Navigation("ApiKey")
                         .IsRequired();
 
                     b.Navigation("MembershipCards");
+
+                    b.Navigation("PathConfiguration")
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

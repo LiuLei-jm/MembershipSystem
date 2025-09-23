@@ -13,6 +13,7 @@ public class MemDbContext : DbContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<ApiKey> ApiKeys { get; set; } = null!;
     public DbSet<MembershipCard> MembershipCards { get; set; } = null!;
+    public DbSet<PathConfiguration> PathConfigurations { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +46,11 @@ public class MemDbContext : DbContext
             .HasOne(u => u.ApiKey)
             .WithOne(a => a.User)
             .HasForeignKey<ApiKey>(a => a.UserId);
+
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.PathConfiguration)
+            .WithOne(pc => pc.User)
+            .HasForeignKey<PathConfiguration>(pc => pc.UserId);
 
         modelBuilder.Entity<ApiKey>()
             .Property(a => a.Id)
@@ -86,6 +92,24 @@ public class MemDbContext : DbContext
             .HasForeignKey(mc => mc.UserId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<PathConfiguration>()
+            .Property(pc => pc.Id)
+            .HasConversion(
+                v => v.ToString(),
+                v => Guid.Parse(v));
 
+        modelBuilder.Entity<PathConfiguration>()
+            .Property(pc => pc.UserId)
+            .HasConversion(
+                v => v.ToString(),
+                v => Guid.Parse(v));
+
+        modelBuilder.Entity<PathConfiguration>()
+            .Property(pc => pc.BasePath)
+            .HasMaxLength(512);
+
+        modelBuilder.Entity<PathConfiguration>()
+            .Property(pc => pc.MembershipCardFilePath)
+            .HasMaxLength(512);
     }
 }

@@ -22,7 +22,6 @@ namespace MembershipSystemAPI.Migrations
                     Role = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     LastLoginAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    MembershipCardPath = table.Column<string>(type: "TEXT", nullable: false),
                     AccessFailedCount = table.Column<int>(type: "INTEGER", nullable: false),
                     LockoutEnd = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
                 },
@@ -77,6 +76,29 @@ namespace MembershipSystemAPI.Migrations
                         onDelete: ReferentialAction.SetNull);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "PathConfigurations",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "TEXT", nullable: false),
+                    UserId = table.Column<string>(type: "TEXT", nullable: false),
+                    BasePath = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
+                    MembershipCardFilePath = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
+                    AllowCustomPaths = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PathConfigurations", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PathConfigurations_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_ApiKeys_UserId",
                 table: "ApiKeys",
@@ -87,6 +109,12 @@ namespace MembershipSystemAPI.Migrations
                 name: "IX_MembershipCards_UserId",
                 table: "MembershipCards",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PathConfigurations_UserId",
+                table: "PathConfigurations",
+                column: "UserId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Username",
@@ -103,6 +131,9 @@ namespace MembershipSystemAPI.Migrations
 
             migrationBuilder.DropTable(
                 name: "MembershipCards");
+
+            migrationBuilder.DropTable(
+                name: "PathConfigurations");
 
             migrationBuilder.DropTable(
                 name: "Users");

@@ -9,13 +9,15 @@ public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, Create
     private readonly MemDbContext _dbContext;
     private readonly ILogger<CreateMembershipEndpoint> _logger;
     private readonly ICdkService _cdkService;
+    private readonly IPathService _pathService;
 
-    public CreateMembershipEndpoint(MemDbContext dbContext, ILogger<CreateMembershipEndpoint> logger, ICdkService cdkService, IHubContext<FilePushHub> hubContext)
+    public CreateMembershipEndpoint(MemDbContext dbContext, ILogger<CreateMembershipEndpoint> logger, ICdkService cdkService, IHubContext<FilePushHub> hubContext, IPathService pathService)
     {
         _dbContext = dbContext;
         _logger = logger;
         _cdkService = cdkService;
         _hubContext = hubContext;
+        _pathService = pathService;
     }
 
     public override void Configure()
@@ -69,9 +71,10 @@ public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, Create
         var apiKeyObj = await _dbContext.ApiKeys.FirstOrDefaultAsync(a => a.UserId == currentUserGuid, ct);
         if (apiKeyObj != null)
         {
-            var command = new SendAppendRequest
+            var pathConfig = await _pathService.GetUserPathConfigurationAsync(currentUserGuid);
+                var command = new SendAppendRequest
             {
-                FilePath = Path.Combine(req.CdkFilePath, "CDK.txt"),
+                FilePath = Path.Combine(pathConfig.BasePath, pathConfig.MembershipCardFilePath),
                 Content = cdk + Environment.NewLine,
                 LogMessage = $"写入新的会员CDK: {cdk}"
             };
@@ -91,7 +94,6 @@ public class CreateMembershipRequest
     public string MembershipName { get; set; } = string.Empty;
     public int DurationInDays { get; set; }
     public decimal Amount { get; set; }
-    public string CdkFilePath { get; set; } = string.Empty;
     public DateTimeOffset StartTime { get; set; } = DateTimeOffset.UtcNow;
     public string? Notes { get; set; }
 }

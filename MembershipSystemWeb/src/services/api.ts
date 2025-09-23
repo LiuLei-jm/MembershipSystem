@@ -1,5 +1,6 @@
 import type { LoginCredentials, RegisterCredentials, ChangePassword } from '@/types/api'
 import type { CreateCardData, UpdateCardData } from '@/types/card'
+import type { PathConfiguration, PathConfigurationUpdateRequest } from '@/types/path'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
@@ -86,5 +87,11 @@ export default {
   },
   updateCard(cardId: string, cardData: UpdateCardData) {
     return apiClient.put(`/membership/${cardId}/update`, cardData)
+  },
+  getPathConfiguration() {
+    return apiClient.get<PathConfiguration>('/user/path-config')
+  },
+  updatePathConfiguration(data: PathConfigurationUpdateRequest) {
+    return apiClient.put<PathConfiguration>('/user/path-config', data)
   },
 }

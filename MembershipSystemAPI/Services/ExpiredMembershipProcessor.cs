@@ -27,15 +27,20 @@ public class ExpiredMembershipProcessor : IHostedService, IDisposable
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<MemDbContext>();
         var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<FilePushHub>>();
+        var pathService = scope.ServiceProvider.GetRequiredService<IPathService>();
+        var connectionManager = scope.ServiceProvider.GetRequiredService<IConnectionManager>();
         var utcNow = DateTimeOffset.UtcNow;
         var potentiallyExpiredCards = await dbContext.MembershipCards
             .Include(c => c.User)
             .ThenInclude(u => u.ApiKey)
-            .Where(c =>  !c.IsExpiredNotificationSent)
+            .Where(c => !c.IsExpiredNotificationSent)
             .ToListAsync();
         var expiredCards = potentiallyExpiredCards
             .Where(c => c.EndTime <= utcNow)
             .ToList();
+
+        var cardsWithSentNotifications = new List<MembershipCard>();
+
         foreach (var card in expiredCards)
         {
             var userApiKey = card.User.ApiKey?.Key;
@@ -50,20 +55,41 @@ public class ExpiredMembershipProcessor : IHostedService, IDisposable
                 _logger.LogWarning($"找不到会员卡 {card.Id} 关联的用户");
                 continue;
             }
+
+            // Check if the user has any active connections before sending notification
+            var userConnections = connectionManager.GetConnections(userApiKey);
+            if (!userConnections.Any())
+            {
+                _logger.LogInformation($"用户 {user.Username} 的会员卡 {card.Id} 已过期，但客户端未连接，将等待客户端连接后发送通知");
+                continue; // Don't mark as sent, will try again next time
+            }
+
             _logger.LogInformation($"会员卡 {card.Id} 已过期，向用户 {user.Username} 发送通知");
+
+            // Use PathService to get the correct file path
+            var pathConfig = await pathService.GetUserPathConfigurationAsync(user.Id);
+            string filePath = Path.Combine(pathConfig.BasePath, pathConfig.MembershipCardFilePath);
+
             var command = new SendDeleteRequest
             {
-                FilePath = Path.Combine(user.MembershipCardPath, "CDK.txt"),
+                FilePath = filePath,
                 ContentToRemove = card.Cdk,
                 LogMessage = $"会员卡 {card.Cdk} 已过期"
             };
             await hubContext.Clients.User(userApiKey).SendAsync("ReceiveDeleteCommand", command);
+            cardsWithSentNotifications.Add(card); // Only mark cards where notification was actually sent
+        }
+
+        // Only update cards where notifications were actually sent
+        foreach (var card in cardsWithSentNotifications)
+        {
             card.IsExpiredNotificationSent = true;
         }
-        if (expiredCards.Any())
+
+        if (cardsWithSentNotifications.Any())
         {
             await dbContext.SaveChangesAsync();
-            _logger.LogInformation($"处理了 {expiredCards.Count} 张过期会员卡");
+            _logger.LogInformation($"处理了 {cardsWithSentNotifications.Count} 张过期会员卡");
         }
     }
 

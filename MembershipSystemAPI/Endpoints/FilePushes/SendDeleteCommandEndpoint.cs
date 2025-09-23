@@ -5,10 +5,12 @@ public class SendDeleteCommandEndpoint : Endpoint<SendDeleteRequest, SendDeleteR
 {
     public IHubContext<FilePushHub> HubContext { get; set; } = null!;
     private readonly MemDbContext _dbContext;
+    private readonly IPathService _pathService;
 
-    public SendDeleteCommandEndpoint(MemDbContext dbContext)
+    public SendDeleteCommandEndpoint(MemDbContext dbContext, IPathService pathService)
     {
         _dbContext = dbContext;
+        _pathService = pathService;
     }
 
     public override void Configure()
@@ -28,7 +30,6 @@ public class SendDeleteCommandEndpoint : Endpoint<SendDeleteRequest, SendDeleteR
 
         if (Guid.TryParse(currentUserId, out var currentUserGuid))
         {
-
             var apiKeyObj = await _dbContext.ApiKeys.FirstOrDefaultAsync(k => k.UserId == currentUserGuid);
             var apiKey = apiKeyObj?.Key;
             if (string.IsNullOrEmpty(apiKey))
@@ -36,11 +37,31 @@ public class SendDeleteCommandEndpoint : Endpoint<SendDeleteRequest, SendDeleteR
                 await Send.NotFoundAsync(ct);
                 return;
             }
-            var fileName = req.FilePath;
+
+            // Validate and construct the file path using PathService
+            string fullPath;
+            try
+            {
+                // Extract just the file name part to prevent path traversal
+                string fileName = Path.GetFileName(req.FilePath);
+                if (string.IsNullOrEmpty(fileName))
+                {
+                    await Send.StringAsync("无效的文件路径。", 400, cancellation: ct);
+                    return;
+                }
+
+                fullPath = _pathService.GetFullFilePath(currentUserGuid, fileName);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "构建文件路径时发生错误");
+                await Send.StringAsync("文件路径处理失败。", 500, cancellation:ct);
+                return;
+            }
 
             var command = new SendDeleteRequest
             {
-                FilePath = req.FilePath,
+                FilePath = fullPath,
                 ContentToRemove = req.ContentToRemove + Environment.NewLine,
                 LogMessage = req.LogMessage
             };
@@ -54,7 +75,6 @@ public class SendDeleteCommandEndpoint : Endpoint<SendDeleteRequest, SendDeleteR
         {
             await Send.StringAsync("无效的用户 ID.", 400);
         }
-
     }
 }
 

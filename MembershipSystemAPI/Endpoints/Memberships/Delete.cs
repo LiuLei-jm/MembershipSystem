@@ -7,11 +7,13 @@ public class DeleteMembershipEndpoint : Endpoint<DeleteMembershipRequest, Delete
 {
     private readonly IHubContext<FilePushHub> _hubContext;
     private readonly MemDbContext _dbContext;
+    private readonly IPathService _pathService;
 
-    public DeleteMembershipEndpoint(MemDbContext dbContext, IHubContext<FilePushHub> hubContext)
+    public DeleteMembershipEndpoint(MemDbContext dbContext, IHubContext<FilePushHub> hubContext, IPathService pathService)
     {
         _dbContext = dbContext;
         _hubContext = hubContext;
+        _pathService = pathService;
     }
     public override void Configure()
     {
@@ -54,9 +56,10 @@ public class DeleteMembershipEndpoint : Endpoint<DeleteMembershipRequest, Delete
         var apiKeyObj = await _dbContext.ApiKeys.Include(a => a.User).FirstOrDefaultAsync(a => a.UserId == currentUserGuid, ct);
         if (apiKeyObj != null)
         { 
+            var pathConfig = await _pathService.GetUserPathConfigurationAsync(currentUserGuid);
             var command = new SendDeleteRequest
             {
-                FilePath = Path.Combine(apiKeyObj.User.MembershipCardPath, "CDK.txt"),
+                FilePath = Path.Combine(pathConfig.BasePath, pathConfig.MembershipCardFilePath),
                 ContentToRemove = card.Cdk,
                 LogMessage = $"删除会员卡 {card.Cdk} "
             };
@@ -72,6 +75,7 @@ public class DeleteMembershipEndpoint : Endpoint<DeleteMembershipRequest, Delete
 public class DeleteMembershipRequest
 {
     public Guid CardId { get; set; }
+
 }
 
 public class DeleteMembershipResponse

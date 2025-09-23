@@ -1,10 +1,10 @@
-﻿using MembershipSystemWPF.Models;
+﻿using System.IO;
+using System.Text.Json;
+using System.Windows;
+using MembershipSystemWPF.Models;
 using Microsoft.AspNetCore.SignalR.Client;
 using Serilog;
 using Serilog.Core;
-using System.IO;
-using System.Text.Json;
-using System.Windows;
 using Forms = System.Windows.Forms;
 
 namespace MembershipSystemWPF
@@ -19,6 +19,7 @@ namespace MembershipSystemWPF
         private Logger _fileLogger = null!;
         private CancellationTokenSource _connectionCts = null!;
         private Forms.NotifyIcon _notifyIcon = null!;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -28,10 +29,11 @@ namespace MembershipSystemWPF
             {
                 Icon = new System.Drawing.Icon("Resources/favicon.ico"),
                 Visible = true,
-                Text = "限时会员网关"
+                Text = "限时会员网关",
             };
             _notifyIcon.DoubleClick += (s, e) => ShowMainWindow();
         }
+
         private void Window_StateChanged(object sender, EventArgs e)
         {
             if (this.WindowState == WindowState.Minimized)
@@ -39,19 +41,25 @@ namespace MembershipSystemWPF
                 this.Hide();
             }
         }
+
         private void ShowMainWindow()
         {
             this.Show();
             this.WindowState = WindowState.Normal;
             this.Activate();
         }
+
         private void InitializeLogger()
         {
             string logDirectory = Path.Combine(GetExeCurrentPath(), "Logs");
             _fileLogger = new LoggerConfiguration()
                 .MinimumLevel.Information()
-                .WriteTo.File(path: Path.Combine(logDirectory, "log-.txt"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30
-                , outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+                .WriteTo.File(
+                    path: Path.Combine(logDirectory, "log-.txt"),
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 30,
+                    outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
+                )
                 .CreateLogger();
             Log("日志系统已初始化。");
         }
@@ -59,7 +67,10 @@ namespace MembershipSystemWPF
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             await LoadConfigAndConnectAsync();
-            if (!string.IsNullOrEmpty(ServerUrlTextBox.Text) && !string.IsNullOrEmpty(ApiKeyTextBox.Text))
+            if (
+                !string.IsNullOrEmpty(ServerUrlTextBox.Text)
+                && !string.IsNullOrEmpty(ApiKeyTextBox.Text)
+            )
             {
                 Log("配置加载成功 ，开始自动连接...");
                 await StartConnectionProcess();
@@ -111,6 +122,7 @@ namespace MembershipSystemWPF
                 await StartConnectionProcess();
             }
         }
+
         private async Task StartConnectionProcess()
         {
             if (_connectionCts != null)
@@ -118,7 +130,6 @@ namespace MembershipSystemWPF
                 await StopConnectionProcess();
             }
             _connectionCts = new CancellationTokenSource();
-
 
             ConnectButton.Content = "断开连接";
             ConnectButton.IsEnabled = true;
@@ -129,9 +140,11 @@ namespace MembershipSystemWPF
 
             _ = ConnectInLoopAsync(_connectionCts.Token);
         }
+
         private async Task StopConnectionProcess()
         {
-            if (_connectionCts == null) return;
+            if (_connectionCts == null)
+                return;
             Log("用户请求断开连接...");
             _connectionCts.Cancel();
             if (_hubConnection != null && _hubConnection.State != HubConnectionState.Disconnected)
@@ -154,15 +167,20 @@ namespace MembershipSystemWPF
             while (!token.IsCancellationRequested)
             {
                 HubConnection? hubConnection = null;
-                var connectionTcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-                using var cancellationTokenRegistration = token.Register(() => connectionTcs.TrySetResult(token));
+                var connectionTcs = new TaskCompletionSource<object?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously
+                );
+                using var cancellationTokenRegistration = token.Register(() =>
+                    connectionTcs.TrySetResult(token)
+                );
                 try
                 {
                     string serverUrl = Dispatcher.Invoke(() => ServerUrlTextBox.Text);
                     string apiKey = Dispatcher.Invoke(() => ApiKeyTextBox.Text);
                     string deviceName = Dispatcher.Invoke(() => DeviceName.Text);
                     string serverUrlFull = $"{serverUrl}/filePushHub";
-                    string urlWithKey = $"{serverUrlFull}?apiKey={Uri.EscapeDataString(apiKey)}&deviceName={deviceName}";
+                    string urlWithKey =
+                        $"{serverUrlFull}?apiKey={Uri.EscapeDataString(apiKey)}&deviceName={deviceName}";
 
                     hubConnection = new HubConnectionBuilder()
                         .WithUrl(urlWithKey)
@@ -179,15 +197,29 @@ namespace MembershipSystemWPF
                         return Task.CompletedTask;
                     };
 
-                    hubConnection.On<FileWriteCommand>("ReceiveWriteCommand", async (command) =>
-                    {
-                        await ModifyFile_Append(command.FilePath, command.Content, command.LogMessage);
-                    });
+                    hubConnection.On<FileWriteCommand>(
+                        "ReceiveWriteCommand",
+                        async (command) =>
+                        {
+                            await ModifyFile_Append(
+                                command.FilePath,
+                                command.Content,
+                                command.LogMessage
+                            );
+                        }
+                    );
 
-                    hubConnection.On<FileDeleteCommand>("ReceiveDeleteCommand", async (command) =>
-                    {
-                        await RemoveContentFromFile(command.FilePath, command.ContentToRemove, command.LogMessage);
-                    });
+                    hubConnection.On<FileDeleteCommand>(
+                        "ReceiveDeleteCommand",
+                        async (command) =>
+                        {
+                            await RemoveContentFromFile(
+                                command.FilePath,
+                                command.ContentToRemove,
+                                command.LogMessage
+                            );
+                        }
+                    );
 
                     Log("正在尝试连接到服务器...");
                     await hubConnection.StartAsync(token);
@@ -231,10 +263,21 @@ namespace MembershipSystemWPF
             }
         }
 
-        private async Task RemoveContentFromFile(string filePath, string contentToRemove, string logMessage)
+        private async Task RemoveContentFromFile(
+            string filePath,
+            string contentToRemove,
+            string logMessage
+        )
         {
             try
             {
+                // Validate file path to prevent path traversal attacks
+                if (!IsValidFilePath(filePath))
+                {
+                    Log($"无效的文件路径: {filePath}");
+                    return;
+                }
+
                 if (!File.Exists(filePath))
                 {
                     Log($"文件不存在，无法删除内容: {filePath}");
@@ -251,7 +294,9 @@ namespace MembershipSystemWPF
                     Log("文件内容或要删除的内容为空，跳过操作。");
                     return;
                 }
-                var filteredLines = originalContentLines.Where(line => !line.Contains(contentToRemove));
+                var filteredLines = originalContentLines.Where(line =>
+                    !line.Contains(contentToRemove)
+                );
                 await File.WriteAllLinesAsync(filePath, filteredLines);
                 Log(logMessage);
             }
@@ -265,6 +310,13 @@ namespace MembershipSystemWPF
         {
             try
             {
+                // Validate file path to prevent path traversal attacks
+                if (!IsValidFilePath(filePath))
+                {
+                    Log($"无效的文件路径: {filePath}");
+                    return;
+                }
+
                 string? directoryPath = Path.GetDirectoryName(filePath);
                 if (!string.IsNullOrEmpty(directoryPath) && !Directory.Exists(directoryPath))
                 {
@@ -299,7 +351,7 @@ namespace MembershipSystemWPF
                 {
                     ServerUrl = ServerUrlTextBox.Text,
                     DeviceName = DeviceName.Text,
-                    ApiKey = ApiKeyTextBox.Text
+                    ApiKey = ApiKeyTextBox.Text,
                 };
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
@@ -328,6 +380,60 @@ namespace MembershipSystemWPF
         private void ClearButton_Click(object sender, RoutedEventArgs e)
         {
             LogTextBox.Text = string.Empty;
+        }
+
+        private bool IsValidFilePath(string filePath)
+        {
+            try
+            {
+                // Check if the file path is null or empty
+                if (string.IsNullOrWhiteSpace(filePath))
+                    return false;
+
+                // Get the full path to resolve any relative paths
+                string fullPath = Path.GetFullPath(filePath);
+
+                // Get the application's base directory
+                string appDirectory = GetExeCurrentPath();
+
+                // Check if the file path is within the application directory or a common safe location
+                // This prevents path traversal attacks
+                if (fullPath.StartsWith(appDirectory, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                // Allow common drive letters (D:, E:, etc.) for flexibility
+                if (
+                    Path.IsPathRooted(fullPath)
+                    && fullPath.Length >= 2
+                    && char.IsLetter(fullPath[0])
+                    && fullPath[1] == ':'
+                )
+                {
+                    return true;
+                }
+
+                // Prevent paths with traversal sequences
+                if (filePath.Contains(".."))
+                {
+                    return false;
+                }
+
+                // Check for invalid characters
+                var invalidChars = Path.GetInvalidPathChars();
+                if (filePath.Any(c => invalidChars.Contains(c)))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            catch
+            {
+                // If any exception occurs during path validation, consider it invalid
+                return false;
+            }
         }
 
         private void Log(string message)

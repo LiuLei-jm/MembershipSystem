@@ -49,6 +49,7 @@ public class UpdateMembershipEndpoint : Endpoint<UpdateMembershipRequest, EmptyR
         if (req.StartTime is not null)
         {
             card.StartTime = req.StartTime.Value;
+            card.EndTime = card.StartTime.AddDays(card.DurationInDays);
         }
         if (!string.IsNullOrWhiteSpace(req.Notes))
         {

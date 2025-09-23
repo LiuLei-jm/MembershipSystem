@@ -31,9 +31,6 @@
           style="width: 100%"
         />
       </el-form-item>
-      <el-form-item label="卡号文件路径" prop="cdkFilePath">
-        <el-input v-model="formModel.cdkFilePath" placeholder="请输入卡号文件路径" />
-      </el-form-item>
       <el-form-item label="备注" prop="notes">
         <el-input
           type="textarea"
@@ -53,8 +50,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { useMembershipStore } from '@/stores/membership'
+import { usePathStore } from '@/stores/path'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import type { CreateCardData } from '@/types/card'
@@ -66,13 +64,14 @@ const emit = defineEmits<{
   (e: 'success'): void
 }>()
 const store = useMembershipStore()
+const pathStore = usePathStore()
 const loading = ref<boolean>(false)
 const formRef = ref<FormInstance>()
+// Initialize form with default values from path store
 const initialFormModel: CreateCardData = {
   membershipName: '',
   durationInDays: 0,
   amount: 0,
-  cdkFilePath: 'D:',
   startTime: new Date(),
   notes: '',
 }
@@ -85,7 +84,6 @@ const formRules = reactive<FormRules>({
     { required: true, type: 'number', min: 1, message: '请输入有效天数', trigger: 'blur' },
   ],
   amount: [{ required: true, type: 'number', min: 0, message: '请输入金额', trigger: 'blur' }],
-  cdkFilePath: [{ required: true, message: '请输入卡号文件路径', trigger: 'blur' }],
   startTime: [{ required: true, type: 'date', message: '请选择开始时间', trigger: 'change' }],
 })
 const resetForm = () => {
@@ -93,6 +91,12 @@ const resetForm = () => {
   formModel.startTime = new Date()
   Object.assign(formModel, initialFormModel)
 }
+
+// Fetch path configuration when component mounts
+onMounted(async () => {
+  await pathStore.fetchPathConfiguration()
+})
+
 const handleClose = () => {
   emit('update:modelValue', false)
   resetForm()

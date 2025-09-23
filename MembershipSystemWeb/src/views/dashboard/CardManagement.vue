@@ -3,8 +3,11 @@
     <template #header>
       <div class="card-header">
         <span>会员卡列表</span>
-        <el-button type="primary" :icon="Plus" @click="openCreateDialog">创建新卡</el-button>
-        <el-button :icon="Refresh" @click="handleRefresh" title="强制刷新"></el-button>
+        <div class="header-buttons">
+          <el-button type="primary" :icon="Plus" @click="openCreateDialog">创建新卡</el-button>
+          <el-button :icon="Setting" @click="openPathConfigDialog">路径配置</el-button>
+          <el-button :icon="Refresh" @click="handleRefresh" title="强制刷新"></el-button>
+        </div>
       </div>
     </template>
     <div class="filter-bar">
@@ -79,16 +82,23 @@
         @success="handleRefresh"
       />
     </el-dialog>
+    <el-dialog v-model="pathConfigDialogVisible" title="路径配置">
+      <PathConfigDialog
+        :model-value="pathConfigDialogVisible"
+        @update:modelValue="pathConfigDialogVisible = $event"
+      />
+    </el-dialog>
   </el-card>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Plus, Refresh } from '@element-plus/icons-vue'
+import { Plus, Refresh, Setting } from '@element-plus/icons-vue'
 import { useMembershipStore } from '@/stores/membership'
 import type { MemberCard } from '@/types/card'
 import CreateCardDialog from '@/components/CreateCardDialog.vue'
 import EditCardDialog from '@/components/EditCardDialog.vue'
+import PathConfigDialog from '@/components/PathConfigDialog.vue'
 
 const store = useMembershipStore()
 
@@ -96,6 +106,7 @@ const loading = ref<boolean>(true)
 const showAllCards = ref<boolean>(false)
 const dialogVisible = ref<boolean>(false)
 const editDialogVisible = ref<boolean>(false)
+const pathConfigDialogVisible = ref<boolean>(false)
 const dialogTitle = ref<string>('创建新卡')
 const selectedCard = ref<MemberCard | null>(null)
 const currentPage = ref<number>(1)
@@ -145,6 +156,10 @@ const openEditDialog = (card: MemberCard) => {
   selectedCard.value = card
   editDialogVisible.value = true
 }
+
+const openPathConfigDialog = () => {
+  pathConfigDialogVisible.value = true
+}
 const deleteCard = (card: MemberCard) => {
   store.deleteCard(card.id)
 }
@@ -172,6 +187,11 @@ const formatDate = (dateStr: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
 }
 
 .filter-bar {
