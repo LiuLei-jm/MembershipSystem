@@ -35,7 +35,7 @@ public class ChangePasswordEndpoint : Endpoint<ChangePasswordRequest, ChangePass
             _logger.LogWarning($"无效的用户 ID. {currentUserId}");
             response.UserId = Guid.Empty;
             response.Message = $"无效的用户 ID: {currentUserId}";
-            await Send.ResponseAsync(response,400,ct);
+            await Send.ResponseAsync(response, 400, ct);
             return;
         }
 
@@ -45,7 +45,7 @@ public class ChangePasswordEndpoint : Endpoint<ChangePasswordRequest, ChangePass
             _logger.LogWarning($"用户未找到. ID: {currentUserGuid}");
             response.UserId = currentUserGuid;
             response.Message = $"用户未找到: {currentUserGuid}";
-            await Send.ResponseAsync(response,404,ct);
+            await Send.ResponseAsync(response, 404, ct);
             return;
         }
         if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.PasswordHash))

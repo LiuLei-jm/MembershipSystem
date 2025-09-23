@@ -3,7 +3,7 @@
 [EnableRateLimiting("register-policy")]
 public class RegisterEndpoint : Endpoint<RegisterRequest, EmptyResponse>
 {
-    private readonly MemDbContext _dbContext ;
+    private readonly MemDbContext _dbContext;
 
     public RegisterEndpoint(MemDbContext dbContext)
     {
@@ -36,7 +36,7 @@ public class RegisterEndpoint : Endpoint<RegisterRequest, EmptyResponse>
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
             Role = "User",
             IsActive = true,
-            CreatedAt = DateTime.Now,
+            CreatedAt = DateTimeOffset.UtcNow,
             ApiKey = new ApiKey()
         };
         _dbContext.Users.Add(newUser);

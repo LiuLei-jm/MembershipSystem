@@ -15,8 +15,8 @@ public class FilePushHub : Hub
     public override async Task OnConnectedAsync()
     {
         var apiKey = Context.Items["ApiKey"] as string;
-        var deviceName = Context.Items["DeviceName"] as string ;
-        
+        var deviceName = Context.Items["DeviceName"] as string;
+
 
         if (string.IsNullOrEmpty(apiKey))
         {

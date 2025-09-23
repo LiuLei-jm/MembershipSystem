@@ -27,7 +27,8 @@ public class GetAllCardsEndpoint : Endpoint<EmptyRequest, List<MembershipCard>>
         var cards = await _dbContext.MembershipCards
             .Where(c => c.UserId == userId)
             .ToListAsync(ct);
-        await Send.OkAsync(cards, ct);
+        var orderedCards = cards.OrderByDescending(c => c.StartTime).ToList();
+        await Send.OkAsync(orderedCards, ct);
     }
 }
 

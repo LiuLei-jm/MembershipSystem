@@ -4,7 +4,7 @@ public class ApiKey
 {
     public Guid Id { get; set; }
     public string Key { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;
@@ -30,6 +30,6 @@ public class ApiKey
     public void RegenerateKey()
     {
         Key = GenerateSecurityApiKey();
-        CreatedAt = DateTime.Now;
+        CreatedAt = DateTimeOffset.UtcNow;
     }
 }

@@ -26,7 +26,7 @@ bld.Services.AddRateLimiter(options =>
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
     {
         var ipAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(partitionKey:ipAddress, _ => new FixedWindowRateLimiterOptions
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey: ipAddress, _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 100,
             Window = TimeSpan.FromMinutes(1),
@@ -72,5 +72,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseFastEndpoints()
    .UseSwaggerGen();
+app.UseCors();
 app.MapHub<FilePushHub>("/filePushHub");
 app.Run();

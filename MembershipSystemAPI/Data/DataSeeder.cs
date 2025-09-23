@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace MembershipSystemAPI.Data;
+﻿namespace MembershipSystemAPI.Data;
 
 public static class DataSeeder
 {
@@ -25,7 +23,7 @@ public static class DataSeeder
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultAdminPassword),
                     Role = defaultAdminRole,
                     IsActive = true,
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = DateTimeOffset.UtcNow,
                     ApiKey = new ApiKey()
                 };
                 await dbContext.Users.AddAsync(adminUser);

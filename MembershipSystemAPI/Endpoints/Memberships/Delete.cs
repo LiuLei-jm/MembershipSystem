@@ -1,13 +1,17 @@
 ﻿
+using MembershipSystemAPI.Endpoints.FilePushes;
+
 namespace MembershipSystemAPI.Endpoints.Memberships;
 
 public class DeleteMembershipEndpoint : Endpoint<DeleteMembershipRequest, DeleteMembershipResponse>
 {
+    private readonly IHubContext<FilePushHub> _hubContext;
     private readonly MemDbContext _dbContext;
 
-    public DeleteMembershipEndpoint(MemDbContext dbContext)
+    public DeleteMembershipEndpoint(MemDbContext dbContext, IHubContext<FilePushHub> hubContext)
     {
         _dbContext = dbContext;
+        _hubContext = hubContext;
     }
     public override void Configure()
     {
@@ -33,7 +37,7 @@ public class DeleteMembershipEndpoint : Endpoint<DeleteMembershipRequest, Delete
             return;
         }
         var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
-        if (!Guid.TryParse(currentUserId, out var currentUserGuid) == false)
+        if (!Guid.TryParse(currentUserId, out var currentUserGuid))
         {
             response.Message = $"用户不存在：{currentUserId}";
             await Send.ResponseAsync(response, 404, ct);
@@ -45,6 +49,18 @@ public class DeleteMembershipEndpoint : Endpoint<DeleteMembershipRequest, Delete
             response.Message = $"未找到指定的会员卡：{cardId}";
             await Send.ResponseAsync(response, 404, ct);
             return;
+        }
+
+        var apiKeyObj = await _dbContext.ApiKeys.Include(a => a.User).FirstOrDefaultAsync(a => a.UserId == currentUserGuid, ct);
+        if (apiKeyObj != null)
+        { 
+            var command = new SendDeleteRequest
+            {
+                FilePath = Path.Combine(apiKeyObj.User.MembershipCardPath, "CDK.txt"),
+                ContentToRemove = card.Cdk,
+                LogMessage = $"删除会员卡 {card.Cdk} "
+            };
+            await _hubContext.Clients.User(apiKeyObj.Key).SendAsync("ReceiveDeleteCommand", command);
         }
         _dbContext.MembershipCards.Remove(card);
         await _dbContext.SaveChangesAsync(ct);

@@ -1,6 +1,4 @@
-﻿using Namotion.Reflection;
-
-namespace MembershipSystemAPI.Data;
+﻿namespace MembershipSystemAPI.Data;
 
 public class MemDbContext : DbContext
 {
@@ -42,9 +40,6 @@ public class MemDbContext : DbContext
                     .Property(u => u.Role)
                     .HasMaxLength(50);
 
-        modelBuilder.Entity<User>()
-                    .Property(u => u.CreatedAt)
-                    .HasMaxLength(50);
 
         modelBuilder.Entity<User>()
             .HasOne(u => u.ApiKey)

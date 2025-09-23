@@ -3,7 +3,7 @@ namespace MembershipSystemAPI.Endpoints.Admins;
 
 public class ChangeUserPassword : Endpoint<ChangeUserPasswordRequest, ChangeUserPasswordResponse>
 {
-    private readonly MemDbContext _dbContext ;
+    private readonly MemDbContext _dbContext;
 
     public ChangeUserPassword(MemDbContext dbContext)
     {

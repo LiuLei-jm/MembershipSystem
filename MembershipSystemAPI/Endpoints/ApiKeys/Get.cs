@@ -2,7 +2,7 @@
 
 public class Get : EndpointWithoutRequest<GetApiKeyResponse>
 {
-    private readonly MemDbContext _dbContext ;
+    private readonly MemDbContext _dbContext;
 
     public Get(MemDbContext dbContext)
     {

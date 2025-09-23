@@ -5,16 +5,17 @@ namespace MembershipSystemAPI.Endpoints.Memberships;
 
 public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, CreateMembershipResponse>
 {
-    public required IHubContext<FilePushHub> HubContext { get; set; } = null!;
+    private readonly IHubContext<FilePushHub> _hubContext;
     private readonly MemDbContext _dbContext;
     private readonly ILogger<CreateMembershipEndpoint> _logger;
     private readonly ICdkService _cdkService;
 
-    public CreateMembershipEndpoint(MemDbContext dbContext, ILogger<CreateMembershipEndpoint> logger, ICdkService cdkService)
+    public CreateMembershipEndpoint(MemDbContext dbContext, ILogger<CreateMembershipEndpoint> logger, ICdkService cdkService, IHubContext<FilePushHub> hubContext)
     {
         _dbContext = dbContext;
         _logger = logger;
         _cdkService = cdkService;
+        _hubContext = hubContext;
     }
 
     public override void Configure()
@@ -42,7 +43,7 @@ public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, Create
             return;
         }
         var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == currentUserGuid, ct);
-        if(user is null)
+        if (user is null)
         {
             response.Message = "用户不存在";
             await Send.ResponseAsync(response, 401, ct);
@@ -53,27 +54,28 @@ public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, Create
         var endTime = req.StartTime.AddDays(req.DurationInDays);
         var newCard = new MembershipCard
         {
+            UserId = user.Id,
+            MembershipName = req.MembershipName,
+            DurationInDays = req.DurationInDays,
             Cdk = cdk,
-            MembershipName = req.Name,
+            Amount = req.Amount,
             StartTime = req.StartTime,
             EndTime = endTime,
-            Amount = req.Amount,
-            Notes = req.Notes!,
-            UserId = user.Id
+            Notes = req.Notes!
         };
         await _dbContext.MembershipCards.AddAsync(newCard, ct);
         await _dbContext.SaveChangesAsync(ct);
 
         var apiKeyObj = await _dbContext.ApiKeys.FirstOrDefaultAsync(a => a.UserId == currentUserGuid, ct);
-        if(apiKeyObj != null)
+        if (apiKeyObj != null)
         {
             var command = new SendAppendRequest
             {
-                FilePath = Path.Combine(req.CdkFilePath,"CDK.txt"),
+                FilePath = Path.Combine(req.CdkFilePath, "CDK.txt"),
                 Content = cdk + Environment.NewLine,
                 LogMessage = $"写入新的会员CDK: {cdk}"
             };
-            await HubContext.Clients.User(apiKeyObj.Key).SendAsync("ReceiveWriteCommand", command, ct);
+            await _hubContext.Clients.User(apiKeyObj.Key).SendAsync("ReceiveWriteCommand", command, ct);
         }
 
         response.Id = newCard.Id;
@@ -86,11 +88,11 @@ public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, Create
 
 public class CreateMembershipRequest
 {
-    public string Name { get; set; } = string.Empty;
+    public string MembershipName { get; set; } = string.Empty;
     public int DurationInDays { get; set; }
     public decimal Amount { get; set; }
     public string CdkFilePath { get; set; } = string.Empty;
-    public DateTime StartTime { get; set; } = DateTime.Now;
+    public DateTimeOffset StartTime { get; set; } = DateTimeOffset.UtcNow;
     public string? Notes { get; set; }
 }
 
@@ -98,6 +100,6 @@ public class CreateMembershipResponse
 {
     public Guid Id { get; set; }
     public string Cdk { get; set; } = string.Empty;
-    public DateTime EndTime { get; set; }
+    public DateTimeOffset EndTime { get; set; }
     public string Message { get; set; } = string.Empty;
 }

@@ -58,7 +58,7 @@ public class SendDeleteCommandEndpoint : Endpoint<SendDeleteRequest, SendDeleteR
     }
 }
 
-public class SendDeleteRequest 
+public class SendDeleteRequest
 {
     public required string FilePath { get; set; }
     public required string ContentToRemove { get; set; }

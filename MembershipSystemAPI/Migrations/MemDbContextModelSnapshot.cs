@@ -23,7 +23,7 @@ namespace MembershipSystemAPI.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
@@ -61,7 +61,7 @@ namespace MembershipSystemAPI.Migrations
                     b.Property<int>("DurationInDays")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("EndTime")
+                    b.Property<DateTimeOffset>("EndTime")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsExpiredNotificationSent")
@@ -76,7 +76,7 @@ namespace MembershipSystemAPI.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("StartTime")
+                    b.Property<DateTimeOffset>("StartTime")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("UserId")
@@ -100,17 +100,16 @@ namespace MembershipSystemAPI.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasMaxLength(50)
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("LastLoginAt")
+                    b.Property<DateTimeOffset>("LastLoginAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime?>("LockoutEnd")
+                    b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("MembershipCardPath")

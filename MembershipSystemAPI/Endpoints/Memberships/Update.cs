@@ -40,13 +40,13 @@ public class UpdateMembershipEndpoint : Endpoint<UpdateMembershipRequest, EmptyR
         if (req.DurationInDays is not null && req.DurationInDays > 0)
         {
             card.DurationInDays = req.DurationInDays.Value;
-            card.EndTime = card.EndTime.AddDays(req.DurationInDays.Value);
+            card.EndTime = card.StartTime.AddDays(req.DurationInDays.Value);
         }
         if (req.Amount is not null && req.Amount > 0)
         {
             card.Amount = req.Amount.Value;
         }
-        if(req.StartTime is not null)
+        if (req.StartTime is not null)
         {
             card.StartTime = req.StartTime.Value;
         }
@@ -64,6 +64,6 @@ public class UpdateMembershipRequest
 {
     public int? DurationInDays { get; set; }
     public decimal? Amount { get; set; }
-    public DateTime? StartTime { get; set; }
+    public DateTimeOffset? StartTime { get; set; }
     public string? Notes { get; set; }
 }

@@ -1,4 +1,6 @@
 ﻿
+using MembershipSystemAPI.Endpoints.FilePushes;
+
 namespace MembershipSystemAPI.Services;
 
 public class ExpiredMembershipProcessor : IHostedService, IDisposable
@@ -25,29 +27,34 @@ public class ExpiredMembershipProcessor : IHostedService, IDisposable
         using var scope = _serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<MemDbContext>();
         var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<FilePushHub>>();
-        var expiredCards = await dbContext.MembershipCards
+        var utcNow = DateTimeOffset.UtcNow;
+        var potentiallyExpiredCards = await dbContext.MembershipCards
             .Include(c => c.User)
             .ThenInclude(u => u.ApiKey)
-            .Where(c => c.EndTime < DateTime.Now && !c.IsExpiredNotificationSent)
+            .Where(c =>  !c.IsExpiredNotificationSent)
             .ToListAsync();
-        foreach(var card in expiredCards)
+        var expiredCards = potentiallyExpiredCards
+            .Where(c => c.EndTime <= utcNow)
+            .ToList();
+        foreach (var card in expiredCards)
         {
             var userApiKey = card.User.ApiKey?.Key;
             var user = card.User;
-            if(string.IsNullOrEmpty(userApiKey))
+            if (string.IsNullOrEmpty(userApiKey))
             {
                 _logger.LogWarning($"用户 {user.Username} 的会员卡 {card.Id} 已过期，但找不到 API Key");
                 continue;
             }
-            if(user is null)
+            if (user is null)
             {
                 _logger.LogWarning($"找不到会员卡 {card.Id} 关联的用户");
                 continue;
             }
             _logger.LogInformation($"会员卡 {card.Id} 已过期，向用户 {user.Username} 发送通知");
-            var command = new {
-                FilePath = Path.Combine(user.MembershipCardPath,"CDK.txt"),
-                Content = card.Cdk,
+            var command = new SendDeleteRequest
+            {
+                FilePath = Path.Combine(user.MembershipCardPath, "CDK.txt"),
+                ContentToRemove = card.Cdk,
                 LogMessage = $"会员卡 {card.Cdk} 已过期"
             };
             await hubContext.Clients.User(userApiKey).SendAsync("ReceiveDeleteCommand", command);

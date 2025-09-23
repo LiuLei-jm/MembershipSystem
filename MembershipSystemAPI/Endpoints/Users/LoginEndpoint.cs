@@ -22,7 +22,7 @@ public class LoginEndpoint : Endpoint<LoginRequest, LoginResponse>
         var user = DbContext.Users.FirstOrDefault(u => u.Username == req.Username);
         if (user != null)
         {
-            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.Now)
+            if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow)
             {
                 await Send.UnauthorizedAsync(ct);
                 return;
@@ -30,7 +30,7 @@ public class LoginEndpoint : Endpoint<LoginRequest, LoginResponse>
 
             if (user.IsActive && BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             {
-                user.LastLoginAt = DateTime.Now;
+                user.LastLoginAt = DateTimeOffset.UtcNow;
                 user.AccessFailedCount = 0;
                 user.LockoutEnd = null;
                 var token = JwtBearer.CreateToken(
@@ -39,8 +39,9 @@ public class LoginEndpoint : Endpoint<LoginRequest, LoginResponse>
                             o.SigningKey = Config["Jwt:SecretKey"]!;
                             o.Issuer = Config["Jwt:Issuer"];
                             o.Audience = Config["Jwt:Audience"];
-                            o.ExpireAt = DateTime.Now.AddDays(1);
+                            o.ExpireAt = DateTime.UtcNow.AddDays(1);
                             o.User.Claims.Add(new("UserId", user.Id.ToString()));
+                            o.User.Claims.Add(new("Username", user.Username));
                             o.User.Roles.Add(user.Role);
                         }
                     );
@@ -57,7 +58,7 @@ public class LoginEndpoint : Endpoint<LoginRequest, LoginResponse>
             user.AccessFailedCount++;
             if (user.AccessFailedCount >= 5)
             {
-                user.LockoutEnd = DateTime.Now.AddMinutes(15);
+                user.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(15);
                 user.AccessFailedCount = 0;
                 await Send.UnauthorizedAsync(ct);
             }

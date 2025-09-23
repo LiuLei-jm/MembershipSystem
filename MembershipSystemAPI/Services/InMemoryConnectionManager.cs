@@ -21,7 +21,7 @@ public class InMemoryConnectionManager : IConnectionManager
     public IEnumerable<ConnectionInfo> GetAllConnections()
     {
         var allConnections = new List<ConnectionInfo>();
-        foreach(var bag in _connections.Values)
+        foreach (var bag in _connections.Values)
         {
             allConnections.AddRange(bag);
         }

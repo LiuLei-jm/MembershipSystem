@@ -3,7 +3,7 @@ namespace MembershipSystemAPI.Endpoints.Admins;
 
 public class GetAllUsers : EndpointWithoutRequest<IEnumerable<UserDto>>
 {
-    private  readonly MemDbContext _dbContext ;
+    private readonly MemDbContext _dbContext;
 
     public GetAllUsers(MemDbContext dbContext)
     {

@@ -4,7 +4,7 @@ namespace MembershipSystemAPI.Endpoints.Admins;
 public class DeleteUser : Endpoint<DeleteUserRequest, DeleteUserResponse>
 {
     private readonly ILogger<DeleteUser> _logger;
-    private readonly MemDbContext _dbContext ;
+    private readonly MemDbContext _dbContext;
 
     public DeleteUser(ILogger<DeleteUser> logger, MemDbContext dbContext)
     {

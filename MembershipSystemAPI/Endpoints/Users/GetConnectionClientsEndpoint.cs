@@ -37,9 +37,10 @@ public class GetConnectionClientsEndpoint : EndpointWithoutRequest<List<Connecti
             await Send.UnauthorizedAsync(ct);
             return;
         }
-    
+
         var apiKeyObj = await _dbContext.ApiKeys.AsNoTracking().FirstOrDefaultAsync(k => k.UserId == currentUserGuid, ct);
-        if (apiKeyObj == null) { 
+        if (apiKeyObj == null)
+        {
             await Send.OkAsync(new List<ConnectionInfo>(), ct);
             return;
         }

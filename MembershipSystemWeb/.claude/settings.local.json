@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/DotNetLearning/MembershipSystem/MembershipSystem/MembershipSystemAPI/Endpoints/FilePushes/**)",
+      "Read(//d/DotNetLearning/MembershipSystem/MembershipSystem/MembershipSystemAPI/Data/**)",
+      "Read(//d/DotNetLearning/MembershipSystem/**)",
+      "Bash(dir:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

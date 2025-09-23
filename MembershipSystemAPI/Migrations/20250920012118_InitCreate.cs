@@ -20,9 +20,11 @@ namespace MembershipSystemAPI.Migrations
                     PasswordHash = table.Column<string>(type: "TEXT", maxLength: 256, nullable: false),
                     IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
                     Role = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", maxLength: 50, nullable: false),
-                    LastLoginAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    MembershipCardPath = table.Column<string>(type: "TEXT", nullable: false)
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    LastLoginAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    MembershipCardPath = table.Column<string>(type: "TEXT", nullable: false),
+                    AccessFailedCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    LockoutEnd = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -35,7 +37,7 @@ namespace MembershipSystemAPI.Migrations
                 {
                     Id = table.Column<string>(type: "TEXT", nullable: false),
                     Key = table.Column<string>(type: "TEXT", maxLength: 512, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", maxLength: 50, nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", maxLength: 50, nullable: false),
                     UserId = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
@@ -55,9 +57,9 @@ namespace MembershipSystemAPI.Migrations
                 {
                     Id = table.Column<string>(type: "TEXT", nullable: false),
                     MembershipName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                    StartTime = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    StartTime = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     DurationInDays = table.Column<int>(type: "INTEGER", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    EndTime = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     Amount = table.Column<decimal>(type: "TEXT", nullable: false),
                     Cdk = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     Notes = table.Column<string>(type: "TEXT", nullable: false),

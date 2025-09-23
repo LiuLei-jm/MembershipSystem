@@ -1,10 +1,10 @@
 ﻿
 namespace MembershipSystemAPI.Endpoints.Admins;
 
-public class ToggleUserStatus : Endpoint<ToggleStatusRequest,ToggleStatusResponse>
+public class ToggleUserStatus : Endpoint<ToggleStatusRequest, ToggleStatusResponse>
 {
     private readonly ILogger<ToggleUserStatus> _logger;
-    private readonly MemDbContext _dbContext ;
+    private readonly MemDbContext _dbContext;
 
     public ToggleUserStatus(ILogger<ToggleUserStatus> logger, MemDbContext dbContext)
     {
@@ -28,7 +28,7 @@ public class ToggleUserStatus : Endpoint<ToggleStatusRequest,ToggleStatusRespons
         });
     }
 
-    public override async Task HandleAsync(ToggleStatusRequest req,CancellationToken ct)
+    public override async Task HandleAsync(ToggleStatusRequest req, CancellationToken ct)
     {
         var userIdToToggle = Route<Guid>("UserId");
         var userToToggle = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userIdToToggle, ct);

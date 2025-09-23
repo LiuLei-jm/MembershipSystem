@@ -240,19 +240,19 @@ namespace MembershipSystemWPF
                     Log($"文件不存在，无法删除内容: {filePath}");
                     return;
                 }
-                string originalContent = await File.ReadAllTextAsync(filePath);
-                if (!originalContent.Contains(contentToRemove))
+                var originalContentLines = await File.ReadAllLinesAsync(filePath);
+                if (!originalContentLines.Contains(contentToRemove))
                 {
                     Log("文件内容中不包含要删除的内容，跳过操作。");
                     return;
                 }
-                if (string.IsNullOrEmpty(originalContent) || string.IsNullOrEmpty(contentToRemove))
+                if (originalContentLines.Length == 0 || string.IsNullOrEmpty(contentToRemove))
                 {
                     Log("文件内容或要删除的内容为空，跳过操作。");
                     return;
                 }
-                string newContent = originalContent.Replace(contentToRemove, string.Empty);
-                await File.WriteAllTextAsync(filePath, newContent);
+                var filteredLines = originalContentLines.Where(line => !line.Contains(contentToRemove));
+                await File.WriteAllLinesAsync(filePath, filteredLines);
                 Log(logMessage);
             }
             catch (Exception ex)

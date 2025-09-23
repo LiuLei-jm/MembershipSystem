@@ -3,7 +3,7 @@ namespace MembershipSystemAPI.Endpoints.ApiKeys;
 
 public class Generate : EndpointWithoutRequest<GenerateApiKeyResponse>
 {
-    private readonly MemDbContext _dbContext ;
+    private readonly MemDbContext _dbContext;
 
     public Generate(MemDbContext dbContext)
     {
@@ -32,7 +32,7 @@ public class Generate : EndpointWithoutRequest<GenerateApiKeyResponse>
         if (existingKey != null)
         {
             existingKey.RegenerateKey();
-            existingKey.CreatedAt = DateTime.Now;
+            existingKey.CreatedAt = DateTimeOffset.UtcNow;
         }
         else
         {
