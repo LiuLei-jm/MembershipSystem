@@ -52,10 +52,12 @@ const handleCommand = (command: string) => {
   height: 100%;
   padding: 0 20px;
 }
+
 .logo {
   font-size: 20px;
   font-weight: bold;
 }
+
 .el-dropdown-link {
   cursor: pointer;
   display: flex;

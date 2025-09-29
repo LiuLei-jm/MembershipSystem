@@ -61,6 +61,8 @@ public class ExpiredMembershipProcessor : IHostedService, IDisposable
             if (!userConnections.Any())
             {
                 _logger.LogInformation($"用户 {user.Username} 的会员卡 {card.Id} 已过期，但客户端未连接，将等待客户端连接后发送通知");
+                // Update the LastCheckedForConnection time to track how long we've been waiting
+                card.LastCheckedForConnection = utcNow;
                 continue; // Don't mark as sent, will try again next time
             }
 

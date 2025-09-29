@@ -14,6 +14,7 @@ public class MembershipCard
     public string Notes { get; set; } = string.Empty;
 
     public bool IsExpiredNotificationSent { get; set; } = false;
+    public DateTimeOffset? LastCheckedForConnection { get; set; }
 
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;

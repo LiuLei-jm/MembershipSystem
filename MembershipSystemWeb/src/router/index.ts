@@ -7,6 +7,7 @@ import HomeView from '@/views/HomeView.vue'
 import CardManagement from '../views/dashboard/CardManagement.vue'
 import UserManagement from '../views/dashboard/UserManagement.vue'
 import ConnectedClients from '../views/dashboard/ConnectedClients.vue'
+import CommunicationKeyManagement from '../views/dashboard/CommunicationKeyManagement.vue'
 
 const routes: RouteRecordRaw[] = [
   { path: '/login', name: 'login', component: LoginView },
@@ -21,6 +22,11 @@ const routes: RouteRecordRaw[] = [
         path: 'cards',
         name: 'card-management',
         component: CardManagement,
+      },
+      {
+        path: 'communication-key',
+        name: 'communication-key-management',
+        component: CommunicationKeyManagement,
       },
       {
         path: 'admin/users',

@@ -16,6 +16,9 @@
       <el-form-item label="会员名" prop="membershipName">
         <el-input v-model="formModel.membershipName" placeholder="请输入会员名" />
       </el-form-item>
+      <el-form-item label="CDK" prop="cdk">
+        <el-input v-model="formModel.cdk" placeholder="留空将自动生成" />
+      </el-form-item>
       <el-form-item label="有效天数" prop="durationInDays">
         <el-input-number v-model="formModel.durationInDays" :min="0" />
       </el-form-item>
@@ -70,6 +73,7 @@ const formRef = ref<FormInstance>()
 // Initialize form with default values from path store
 const initialFormModel: CreateCardData = {
   membershipName: '',
+  cdk: '',
   durationInDays: 0,
   amount: 0,
   startTime: new Date(),
@@ -80,6 +84,22 @@ const formModel = reactive<CreateCardData>({
 })
 const formRules = reactive<FormRules>({
   membershipName: [{ required: true, message: '请输入会员名', trigger: 'blur' }],
+  cdk: [
+    {
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback() // 空值直接通过
+        } else if (value.length !== 20) {
+          callback(new Error('CDK长度必须为20位'))
+        } else if (!/\d{4}$/.test(value)) {
+          callback(new Error('CDK最后4位必须是数字'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
   durationInDays: [
     { required: true, type: 'number', min: 1, message: '请输入有效天数', trigger: 'blur' },
   ],

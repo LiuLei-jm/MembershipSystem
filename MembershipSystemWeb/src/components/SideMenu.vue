@@ -5,6 +5,11 @@
       <span>会员卡管理</span>
     </el-menu-item>
 
+    <el-menu-item index="/communication-key">
+      <el-icon><Key /></el-icon>
+      <span>通讯密钥管理</span>
+    </el-menu-item>
+
     <el-sub-menu v-if="authStore.isAdmin" index="/admin">
       <template #title>
         <el-icon><Setting /></el-icon>
@@ -26,7 +31,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { CreditCard, Setting, User, Connection } from '@element-plus/icons-vue'
+import { CreditCard, Setting, User, Connection, Key } from '@element-plus/icons-vue'
 
 const authStore = useAuthStore()
 const route = useRoute()

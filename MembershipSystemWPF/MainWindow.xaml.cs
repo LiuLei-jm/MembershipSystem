@@ -215,7 +215,7 @@ namespace MembershipSystemWPF
                         {
                             await RemoveContentFromFile(
                                 command.FilePath,
-                                command.ContentToRemove,
+                                command.ContentToRemove.Trim(),
                                 command.LogMessage
                             );
                         }
@@ -286,12 +286,10 @@ namespace MembershipSystemWPF
                 var originalContentLines = await File.ReadAllLinesAsync(filePath);
                 if (!originalContentLines.Contains(contentToRemove))
                 {
-                    Log("文件内容中不包含要删除的内容，跳过操作。");
                     return;
                 }
                 if (originalContentLines.Length == 0 || string.IsNullOrEmpty(contentToRemove))
                 {
-                    Log("文件内容或要删除的内容为空，跳过操作。");
                     return;
                 }
                 var filteredLines = originalContentLines.Where(line =>

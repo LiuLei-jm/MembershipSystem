@@ -41,7 +41,7 @@ public class LoginEndpoint : Endpoint<LoginRequest, LoginResponse>
                             o.Audience = Config["Jwt:Audience"];
                             o.ExpireAt = DateTime.UtcNow.AddDays(1);
                             o.User.Claims.Add(new("UserId", user.Id.ToString()));
-                            o.User.Claims.Add(new("Username", user.Username));
+                            o.User.Claims.Add(new("UserName", user.Username));
                             o.User.Roles.Add(user.Role);
                         }
                     );

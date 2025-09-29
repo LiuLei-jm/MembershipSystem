@@ -22,6 +22,13 @@ export const usePathStore = defineStore('path', {
     membershipCardFilePath: (state) => state.config?.membershipCardFilePath || 'CDK.txt',
   },
   actions: {
+    // 重置store状态
+    $reset() {
+      this.config = null
+      this.status = 'idle'
+      this.error = null
+    },
+
     async fetchPathConfiguration(force = false) {
       if (!force && this.hasBeenFetched) return
       this.status = 'loading'
