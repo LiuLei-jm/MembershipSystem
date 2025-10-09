@@ -52,7 +52,7 @@ public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, Create
             return;
         }
 
-        var cdk = _cdkService.GenerateCdk(req.Amount);
+        var cdk = string.IsNullOrEmpty(req.Cdk) ? _cdkService.GenerateCdk(req.Amount) : req.Cdk;
         var endTime = req.StartTime.AddDays(req.DurationInDays);
         var newCard = new MembershipCard
         {
@@ -92,6 +92,7 @@ public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, Create
 public class CreateMembershipRequest
 {
     public string MembershipName { get; set; } = string.Empty;
+    public string? Cdk { get; set; }
     public int DurationInDays { get; set; }
     public decimal Amount { get; set; }
     public DateTimeOffset StartTime { get; set; } = DateTimeOffset.UtcNow;

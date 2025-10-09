@@ -67,14 +67,29 @@ public class FilePushHub : Hub
         // Get all expired membership cards for this user that haven't had notifications sent
         var utcNow = DateTimeOffset.UtcNow;
         var pendingExpiredCards = await dbContext.MembershipCards
-            .Where(c => c.UserId == user.Id && !c.IsExpiredNotificationSent)
+            .Where(c => c.UserId == user.Id)
             .ToListAsync();
 
         var expiredCards = pendingExpiredCards
-            .Where(c => c.EndTime <= utcNow)
+            .Where(c => c.EndTime <= utcNow && c.EndTime >= utcNow.AddDays(-30))
             .ToList();
 
+        var cardsToSend = new List<MembershipCard>();
+
         foreach (var card in expiredCards)
+        {
+            // Check if we should send this notification
+            // Send if:
+            // 1. This is the first time we're checking (LastCheckedForConnection is null), or
+            // 2. It's been more than 1 hour since we last tried to send it
+            if (card.LastCheckedForConnection == null || (utcNow - card.LastCheckedForConnection.Value).TotalMinutes >= 1)
+            {
+                cardsToSend.Add(card);
+                card.LastCheckedForConnection = utcNow;
+            }
+        }
+
+        foreach (var card in cardsToSend)
         {
             _logger.LogInformation($"向刚连接的用户 {user.Username} 发送会员卡 {card.Id} 的过期通知");
 
@@ -92,10 +107,10 @@ public class FilePushHub : Hub
             card.IsExpiredNotificationSent = true;
         }
 
-        if (pendingExpiredCards.Any())
+        if (cardsToSend.Any())
         {
             await dbContext.SaveChangesAsync();
-            _logger.LogInformation($"向用户 {user.Username} 发送了 {pendingExpiredCards.Count} 条过期会员卡通知");
+            _logger.LogInformation($"向用户 {user.Username} 发送了 {cardsToSend.Count} 条过期会员卡通知");
         }
     }
 }

@@ -31,7 +31,9 @@ public class GetAllUsers : EndpointWithoutRequest<IEnumerable<UserDto>>
                 Id = u.Id,
                 Username = u.Username,
                 IsActive = u.IsActive,
-                Role = u.Role
+                Role = u.Role,
+                CreatedAt = u.CreatedAt,
+                LastLoginAt = u.LastLoginAt
             }).ToListAsync();
 
         await Send.OkAsync(users, ct);
@@ -44,5 +46,7 @@ public class UserDto
     public string Username { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public string Role { get; set; } = string.Empty;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset LastLoginAt { get; set; }
 
 }

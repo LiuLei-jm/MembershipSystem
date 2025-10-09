@@ -3,6 +3,7 @@ using System;
 using MembershipSystemAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MembershipSystemAPI.Migrations
 {
     [DbContext(typeof(MemDbContext))]
-    partial class MemDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250925085459_AddLastCheckedForConnectionToMembershipCard")]
+    partial class AddLastCheckedForConnectionToMembershipCard
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.20");

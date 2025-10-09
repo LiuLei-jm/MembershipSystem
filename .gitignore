@@ -361,3 +361,41 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# dependencies
+/node_modules
+
+# build outputs
+/dist
+/build
+/out
+
+# local env files
+.env.local
+.env.*.local
+.env
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# editor/IDE specific
+.idea/
+.vscode/
+*.swp
+*.bak
+*.swo
+
+# macOS specific
+.DS_Store
+
+# others
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+*.db
+*.claude/
+*.vscode/

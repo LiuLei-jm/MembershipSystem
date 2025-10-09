@@ -57,7 +57,7 @@ const loading = ref<boolean>(false)
 const formRef = ref<FormInstance>()
 
 const formModel = reactive<PathConfigurationUpdateRequest>({
-  basePath:  "D:",
+  basePath: 'D:',
   membershipCardFilePath: 'CDK.txt',
   allowCustomPaths: true,
 })
@@ -108,7 +108,7 @@ watch(
         formModel.allowCustomPaths = pathStore.config.allowCustomPaths
       }
     }
-  }
+  },
 )
 
 const handleSubmit = async () => {

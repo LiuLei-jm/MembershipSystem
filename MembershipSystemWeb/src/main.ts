@@ -7,12 +7,16 @@ import 'element-plus/dist/index.css'
 
 import App from './App.vue'
 import router from './router'
+import { initializeStoreCleaner } from '@/stores/storeCleaner'
 import './assets/main.css'
 
 const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
+
+// 初始化 store 清理器
+initializeStoreCleaner()
 
 app.use(ElementPlus, {
   locale: zhCn,

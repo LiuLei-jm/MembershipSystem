@@ -1,11 +1,27 @@
-import type { LoginCredentials, RegisterCredentials, ChangePassword } from '@/types/api'
+import type {
+  LoginCredentials,
+  RegisterCredentials,
+  ChangePassword,
+  ApiKeyResponse,
+  GenerateApiKeyResponse,
+  ConnectionInfo,
+} from '@/types/api'
+import type {
+  User,
+  CreateUserRequest,
+  ChangeUserPasswordRequest,
+  ToggleUserStatusRequest,
+} from '@/types/user'
 import type { CreateCardData, UpdateCardData } from '@/types/card'
 import type { PathConfiguration, PathConfigurationUpdateRequest } from '@/types/path'
+import type { AppendData, DeleteData } from '@/types/pushContent'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
+import router from '@/router'
 
 const apiClient = axios.create({
-  baseURL: 'https://localhost:5451', // Replace with your API base URL
+  baseURL: 'https://mir.lovemumu.top:5451', // Replace with your API base URL
   headers: {
     'Content-Type': 'application/json',
   },
@@ -30,6 +46,10 @@ apiClient.interceptors.response.use(
           break
         case 401:
           message = '未授权，请登录'
+          // 清除认证状态并跳转到登录页
+          const authStore = useAuthStore()
+          authStore.logout()
+          router.push({ name: 'login' })
           break
         case 403:
           message = '拒绝访问'
@@ -58,7 +78,7 @@ apiClient.interceptors.response.use(
 )
 
 export default {
-  regitster(credentials: LoginCredentials) {
+  register(credentials: LoginCredentials) {
     return apiClient.post('/user/register', credentials)
   },
   login(credentials: RegisterCredentials) {
@@ -68,13 +88,10 @@ export default {
     return apiClient.post('/user/change-password', data)
   },
   getApiKey() {
-    return apiClient.get('/user/apikey')
+    return apiClient.get<ApiKeyResponse>('/user/apikey')
   },
   updateApiKey() {
-    return apiClient.post('/user/apikey')
-  },
-  getConnections() {
-    return apiClient.get('/user/connections')
+    return apiClient.post<GenerateApiKeyResponse>('/user/apikey')
   },
   getCards() {
     return apiClient.get('/membership/cards')
@@ -93,5 +110,30 @@ export default {
   },
   updatePathConfiguration(data: PathConfigurationUpdateRequest) {
     return apiClient.put<PathConfiguration>('/user/path-config', data)
+  },
+  appendCdk(cdkData: AppendData) {
+    return apiClient.post<AppendData>('/file-push/append', cdkData)
+  },
+  deleteCdk(cdkData: DeleteData) {
+    return apiClient.post<DeleteData>('/file-push/delete', cdkData)
+  },
+  // 用户管理相关接口
+  getUsers() {
+    return apiClient.get<User[]>('/admin/users')
+  },
+  createUser(userData: CreateUserRequest) {
+    return apiClient.post('/user/register', userData)
+  },
+  changeUserPassword(data: ChangeUserPasswordRequest) {
+    return apiClient.put(`/admin/${data.userId}/change-password`, { newPassword: data.newPassword })
+  },
+  toggleUserStatus(data: ToggleUserStatusRequest) {
+    return apiClient.put(`/admin/${data.userId}/toggle-status`, { isActive: data.isActive })
+  },
+  deleteUser(userId: string) {
+    return apiClient.delete(`/admin/${userId}`)
+  },
+  getAllConnections() {
+    return apiClient.get<ConnectionInfo[]>('/admin/connections')
   },
 }

@@ -6,6 +6,13 @@ import { jwtDecode } from 'jwt-decode'
 import type { UserInfo } from '@/types/user'
 import type { LoginCredentials, RegisterCredentials, ChangePassword } from '@/types/api'
 
+// 全局 store 清理函数
+let clearAllStores: (() => void) | null = null
+
+export const registerClearAllStores = (callback: () => void) => {
+  clearAllStores = callback
+}
+
 interface AuthState {
   token: string | null
   user: UserInfo | null
@@ -23,7 +30,7 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async register(credentials: RegisterCredentials): Promise<boolean> {
       try {
-        api.regitster(credentials)
+        api.register(credentials)
         ElMessage.success('注册成功，请登录')
         router.push('/login')
         return true
@@ -34,6 +41,11 @@ export const useAuthStore = defineStore('auth', {
     },
     async login(credentials: LoginCredentials): Promise<boolean> {
       try {
+        // 登录前先清理所有store数据，防止数据污染
+        if (clearAllStores) {
+          clearAllStores()
+        }
+
         const response = await api.login(credentials)
         this.token = response.data.token
         if (!this.token) {
@@ -42,10 +54,11 @@ export const useAuthStore = defineStore('auth', {
         localStorage.setItem('token', this.token)
         try {
           const decodedToken = jwtDecode<UserInfo>(this.token)
+          console.log(decodedToken)
           this.user = {
-            username: decodedToken.username,
+            username: decodedToken.UserName,
             role: decodedToken.role,
-            userId: decodedToken.userId,
+            userId: decodedToken.UserId,
           }
           localStorage.setItem('user', JSON.stringify(this.user))
         } catch (error) {
@@ -76,6 +89,10 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     logout() {
+      // 清理所有store数据
+      if (clearAllStores) {
+        clearAllStores()
+      }
       this.token = null
       this.user = null
       localStorage.removeItem('token')

@@ -7,13 +7,26 @@ public class InMemoryConnectionManager : IConnectionManager
 {
     private readonly ConcurrentDictionary<string, ConcurrentBag<ConnectionInfo>> _connections = new();
     private readonly ConcurrentDictionary<string, string> _connectionIdToApiKey = new();
+        private readonly IServiceProvider _serviceProvider;
+
+    public InMemoryConnectionManager(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
+
     public void AddConnection(string apiKey, string connectionId, string deviceName)
     {
         _connectionIdToApiKey[connectionId] = apiKey;
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MemDbContext>();
+
+        var apiKeyObj = dbContext.ApiKeys.Include(a => a.User).FirstOrDefault(a => a.Key == apiKey);
+        var username = apiKeyObj!.User.Username;
         var connectionBag = _connections.GetOrAdd(apiKey, _ => new ConcurrentBag<ConnectionInfo>());
         connectionBag.Add(new ConnectionInfo
         {
             ConnectionId = connectionId,
+            UserName = username,
             DeviceName = deviceName,
         });
     }
@@ -32,6 +45,12 @@ public class InMemoryConnectionManager : IConnectionManager
     {
         _connections.TryGetValue(apiKey, out var connectionBag);
         return connectionBag ?? Enumerable.Empty<Models.ConnectionInfo>();
+    }
+
+    public int GetConnectionCount(string apiKey)
+    {
+        _connections.TryGetValue(apiKey, out var connectionBag);
+        return connectionBag?.Count ?? 0;
     }
 
     public void RemoveConnection(string connectionId)
