@@ -108,8 +108,8 @@ const formRules = reactive<FormRules>({
 })
 const resetForm = () => {
   formRef.value?.resetFields()
-  formModel.startTime = new Date()
   Object.assign(formModel, initialFormModel)
+  formModel.startTime = new Date()
 }
 
 // Fetch path configuration when component mounts

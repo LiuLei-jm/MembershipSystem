@@ -71,8 +71,15 @@ await app.SeedDefaultAdminUserAsync();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseFastEndpoints()
-   .UseSwaggerGen();
+if (app.Environment.IsDevelopment())
+{
+    app.UseFastEndpoints()
+        .UseSwaggerGen();
+}
+else
+{
+    app.UseFastEndpoints();
+}
 app.UseCors();
 app.MapHub<FilePushHub>("/filePushHub");
 app.Run();

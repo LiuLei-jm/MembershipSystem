@@ -84,7 +84,6 @@ namespace MembershipSystemWPF
         private async Task LoadConfigAndConnectAsync()
         {
             string configFilePath = Path.Combine(GetExeCurrentPath(), _configFileName);
-            Log($"正在从{configFilePath}加载配置...");
             if (!File.Exists(configFilePath))
             {
                 Log($"配置文件不存在: {configFilePath}");
@@ -226,9 +225,6 @@ namespace MembershipSystemWPF
                     Log("成功连接到服务器！正在等待指令...");
                     await connectionTcs.Task;
 
-                    //var tcs = new TaskCompletionSource<object>();
-                    //token.Register(() => tcs.TrySetResult(null!));
-                    //await tcs.Task;
                 }
                 catch (OperationCanceledException)
                 {
@@ -248,7 +244,7 @@ namespace MembershipSystemWPF
                 }
                 if (!token.IsCancellationRequested)
                 {
-                    int retryDelay = 10000;
+                    int retryDelay = 300000;
                     Log($"将在 {retryDelay / 1000} 秒后重试...");
                     try
                     {
