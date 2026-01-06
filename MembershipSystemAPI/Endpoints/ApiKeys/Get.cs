@@ -1,12 +1,13 @@
-﻿namespace MembershipSystemAPI.Endpoints.ApiKeys;
+﻿using MembershipSystemAPI.DTOs;
+
+namespace MembershipSystemAPI.Endpoints.ApiKeys;
 
 public class Get : EndpointWithoutRequest<GetApiKeyResponse>
 {
-    private readonly MemDbContext _dbContext;
-
-    public Get(MemDbContext dbContext)
+    private readonly IMediator _mediator;
+    public Get(IMediator mediator)
     {
-        _dbContext = dbContext;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -27,25 +28,26 @@ public class Get : EndpointWithoutRequest<GetApiKeyResponse>
         var userIdClaim = User.FindFirst("UserId");
         var userId = Guid.Parse(userIdClaim!.Value);
 
-        var apiKey = await _dbContext.ApiKeys.Where(k => k.UserId == userId)
-            .Select(a => new GetApiKeyResponse
-            {
-                ApiKey = a.Key,
-                CreatedAt = a.CreatedAt.ToString("o")
-            }).FirstOrDefaultAsync(ct);
-        if (apiKey == null)
+        try
         {
-            await Send.NotFoundAsync(ct);
+            var query = new GetApiKeyQueries(userId);
+            var apiKey = await _mediator.Send(query, ct);
+            if (apiKey == null)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+
+            await Send.OkAsync(apiKey, ct);
+
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "获取 API Key 时发生错误");
+            await Send.ErrorsAsync(500, ct);
             return;
         }
-
-        await Send.OkAsync(apiKey, ct);
     }
 
 }
 
-public class GetApiKeyResponse
-{
-    public string ApiKey { get; set; } = string.Empty;
-    public string CreatedAt { get; set; } = string.Empty;
-}

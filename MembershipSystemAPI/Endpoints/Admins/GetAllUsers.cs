@@ -1,13 +1,14 @@
-﻿
+﻿using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.Admins;
 
 public class GetAllUsers : EndpointWithoutRequest<IEnumerable<UserDto>>
 {
-    private readonly MemDbContext _dbContext;
+    private readonly IMediator _mediator;
 
-    public GetAllUsers(MemDbContext dbContext)
+    public GetAllUsers(IMediator mediator)
     {
-        _dbContext = dbContext;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -25,28 +26,10 @@ public class GetAllUsers : EndpointWithoutRequest<IEnumerable<UserDto>>
     }
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var users = await _dbContext.Users
-            .Select(u => new UserDto
-            {
-                Id = u.Id,
-                Username = u.Username,
-                IsActive = u.IsActive,
-                Role = u.Role,
-                CreatedAt = u.CreatedAt,
-                LastLoginAt = u.LastLoginAt
-            }).ToListAsync();
+        var query = new GetAllUsersQuery();
+        var users = await _mediator.Send(query, ct);
 
         await Send.OkAsync(users, ct);
     }
 }
 
-public class UserDto
-{
-    public Guid Id { get; set; }
-    public string Username { get; set; } = string.Empty;
-    public bool IsActive { get; set; }
-    public string Role { get; set; } = string.Empty;
-    public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset LastLoginAt { get; set; }
-
-}

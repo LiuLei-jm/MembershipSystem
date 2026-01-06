@@ -1,13 +1,14 @@
-﻿
+using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.ApiKeys;
 
 public class Generate : EndpointWithoutRequest<GenerateApiKeyResponse>
 {
-    private readonly MemDbContext _dbContext;
+    private readonly IMediator _mediator;
 
-    public Generate(MemDbContext dbContext)
+    public Generate(IMediator mediator)
     {
-        _dbContext = dbContext;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -22,35 +23,25 @@ public class Generate : EndpointWithoutRequest<GenerateApiKeyResponse>
             s.Responses[401] = "未授权的访问";
         });
     }
+
     public override async Task HandleAsync(CancellationToken ct)
     {
         var userIdClaim = User.FindFirst("UserId");
         var userId = Guid.Parse(userIdClaim!.Value);
 
-        var existingKey = await _dbContext.ApiKeys.FirstOrDefaultAsync(k => k.UserId == userId, ct);
+        try
+        {
+            var command = new GenerateApiKeyCommand(userId);
+            var result = await _mediator.Send(command, ct);
 
-        if (existingKey != null)
-        {
-            existingKey.RegenerateKey();
-            existingKey.CreatedAt = DateTimeOffset.UtcNow;
+            await Send.OkAsync(new GenerateApiKeyResponse(result.Key, result.CreatedAt), ct);
         }
-        else
+        catch (Exception ex)
         {
-            var newKey = new ApiKey
-            {
-                UserId = userId,
-            };
-            _dbContext.ApiKeys.Add(newKey);
-            existingKey = newKey;
+            Logger.LogError(ex, "生成 API Key 时发生错误");
+            await Send.ErrorsAsync(500, ct);
+            return;
         }
-        var newKeyValue = existingKey.Key;
-        await _dbContext.SaveChangesAsync(ct);
-        await Send.OkAsync(new GenerateApiKeyResponse { ApiKey = newKeyValue }, ct);
     }
 
-}
-
-public class GenerateApiKeyResponse
-{
-    public string ApiKey { get; set; } = string.Empty;
 }

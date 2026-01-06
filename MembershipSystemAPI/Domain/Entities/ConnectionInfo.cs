@@ -1,4 +1,4 @@
-﻿namespace MembershipSystemAPI.Models;
+namespace MembershipSystemAPI.Domain.Entities;
 
 public class ConnectionInfo
 {

@@ -1,16 +1,13 @@
-﻿
+﻿using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.FilePushes;
 
 public class SendDeleteCommandEndpoint : Endpoint<SendDeleteRequest, SendDeleteResponse>
 {
-    public IHubContext<FilePushHub> HubContext { get; set; } = null!;
-    private readonly MemDbContext _dbContext;
-    private readonly IPathService _pathService;
-
-    public SendDeleteCommandEndpoint(MemDbContext dbContext, IPathService pathService)
+    private readonly IMediator _mediator;
+    public SendDeleteCommandEndpoint(IMediator mediator)
     {
-        _dbContext = dbContext;
-        _pathService = pathService;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -27,64 +24,26 @@ public class SendDeleteCommandEndpoint : Endpoint<SendDeleteRequest, SendDeleteR
     public override async Task HandleAsync(SendDeleteRequest req, CancellationToken ct)
     {
         var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
-
-        if (Guid.TryParse(currentUserId, out var currentUserGuid))
+        if (!Guid.TryParse(currentUserId, out var currentUserGuid))
         {
-            var apiKeyObj = await _dbContext.ApiKeys.FirstOrDefaultAsync(k => k.UserId == currentUserGuid);
-            var apiKey = apiKeyObj?.Key;
-            if (string.IsNullOrEmpty(apiKey))
-            {
-                await Send.NotFoundAsync(ct);
-                return;
-            }
-
-            // Validate and construct the file path using PathService
-            string fullPath;
-            try
-            {
-                // Extract just the file name part to prevent path traversal
-                string fileName = Path.GetFileName(req.FilePath);
-                if (string.IsNullOrEmpty(fileName))
-                {
-                    await Send.StringAsync("无效的文件路径。", 400, cancellation: ct);
-                    return;
-                }
-
-                fullPath = _pathService.GetFullFilePath(currentUserGuid, fileName);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "构建文件路径时发生错误");
-                await Send.StringAsync("文件路径处理失败。", 500, cancellation:ct);
-                return;
-            }
-
-            var command = new SendDeleteRequest
-            {
-                FilePath = fullPath,
-                ContentToRemove = req.ContentToRemove + Environment.NewLine,
-                LogMessage = req.LogMessage
-            };
-            await HubContext.Clients.User(apiKey).SendAsync("ReceiveDeleteCommand", command, ct);
+            await Send.UnauthorizedAsync(ct);
+            return;
+        }
+        var command = new SendDeleteCommand(currentUserGuid, req.FilePath, req.ContentToRemove, req.LogMessage);
+        var result = await _mediator.Send(command, ct);
+        if (result.Success)
+        {
             await Send.OkAsync(new SendDeleteResponse
-            {
-                Message = "命令已发送至与你 API Key 关联的客户端."
-            }, ct);
+            (
+                result.Success, result.Message
+            ), ct);
+            return;
         }
         else
         {
-            await Send.StringAsync("无效的用户 ID.", 400);
+            await Send.ForbiddenAsync(ct);
+            return;
         }
     }
 }
 
-public class SendDeleteRequest
-{
-    public required string FilePath { get; set; }
-    public required string ContentToRemove { get; set; }
-    public required string LogMessage { get; set; }
-}
-public class SendDeleteResponse
-{
-    public required string Message { get; set; }
-}

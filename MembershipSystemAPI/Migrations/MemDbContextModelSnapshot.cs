@@ -17,7 +17,7 @@ namespace MembershipSystemAPI.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.20");
 
-            modelBuilder.Entity("MembershipSystemAPI.Models.ApiKey", b =>
+            modelBuilder.Entity("MembershipSystemAPI.Domain.Entities.ApiKey", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -44,7 +44,7 @@ namespace MembershipSystemAPI.Migrations
                     b.ToTable("ApiKeys");
                 });
 
-            modelBuilder.Entity("MembershipSystemAPI.Models.MembershipCard", b =>
+            modelBuilder.Entity("MembershipSystemAPI.Domain.Entities.MembershipCard", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -93,7 +93,7 @@ namespace MembershipSystemAPI.Migrations
                     b.ToTable("MembershipCards");
                 });
 
-            modelBuilder.Entity("MembershipSystemAPI.Models.PathConfiguration", b =>
+            modelBuilder.Entity("MembershipSystemAPI.Domain.Entities.PathConfiguration", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -107,15 +107,9 @@ namespace MembershipSystemAPI.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("MembershipCardFilePath")
                         .IsRequired()
                         .HasMaxLength(512)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("UserId")
@@ -130,7 +124,7 @@ namespace MembershipSystemAPI.Migrations
                     b.ToTable("PathConfigurations");
                 });
 
-            modelBuilder.Entity("MembershipSystemAPI.Models.User", b =>
+            modelBuilder.Entity("MembershipSystemAPI.Domain.Entities.User", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -146,7 +140,7 @@ namespace MembershipSystemAPI.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("LastLoginAt")
+                    b.Property<DateTimeOffset?>("LastLoginAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
@@ -175,20 +169,20 @@ namespace MembershipSystemAPI.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("MembershipSystemAPI.Models.ApiKey", b =>
+            modelBuilder.Entity("MembershipSystemAPI.Domain.Entities.ApiKey", b =>
                 {
-                    b.HasOne("MembershipSystemAPI.Models.User", "User")
+                    b.HasOne("MembershipSystemAPI.Domain.Entities.User", "User")
                         .WithOne("ApiKey")
-                        .HasForeignKey("MembershipSystemAPI.Models.ApiKey", "UserId")
+                        .HasForeignKey("MembershipSystemAPI.Domain.Entities.ApiKey", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MembershipSystemAPI.Models.MembershipCard", b =>
+            modelBuilder.Entity("MembershipSystemAPI.Domain.Entities.MembershipCard", b =>
                 {
-                    b.HasOne("MembershipSystemAPI.Models.User", "User")
+                    b.HasOne("MembershipSystemAPI.Domain.Entities.User", "User")
                         .WithMany("MembershipCards")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -197,18 +191,18 @@ namespace MembershipSystemAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MembershipSystemAPI.Models.PathConfiguration", b =>
+            modelBuilder.Entity("MembershipSystemAPI.Domain.Entities.PathConfiguration", b =>
                 {
-                    b.HasOne("MembershipSystemAPI.Models.User", "User")
+                    b.HasOne("MembershipSystemAPI.Domain.Entities.User", "User")
                         .WithOne("PathConfiguration")
-                        .HasForeignKey("MembershipSystemAPI.Models.PathConfiguration", "UserId")
+                        .HasForeignKey("MembershipSystemAPI.Domain.Entities.PathConfiguration", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MembershipSystemAPI.Models.User", b =>
+            modelBuilder.Entity("MembershipSystemAPI.Domain.Entities.User", b =>
                 {
                     b.Navigation("ApiKey")
                         .IsRequired();

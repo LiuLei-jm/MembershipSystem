@@ -1,13 +1,14 @@
 ﻿
+using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.Admins;
 
 public class ChangeUserPassword : Endpoint<ChangeUserPasswordRequest, ChangeUserPasswordResponse>
 {
-    private readonly MemDbContext _dbContext;
-
-    public ChangeUserPassword(MemDbContext dbContext)
+    private readonly IMediator _mediator;
+    public ChangeUserPassword(IMediator mediator)
     {
-        _dbContext = dbContext;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -26,44 +27,22 @@ public class ChangeUserPassword : Endpoint<ChangeUserPasswordRequest, ChangeUser
     }
     public override async Task HandleAsync(ChangeUserPasswordRequest req, CancellationToken ct)
     {
-        var userToChange = _dbContext.Users.FirstOrDefault(u => u.Id == req.UserId);
-        if (userToChange == null)
+        try
         {
-            await Send.NotFoundAsync(ct);
-            return;
+            var command = new ChangeUserPasswordCommand(req.UserId, req.NewPassword);
+            var result = await _mediator.Send(command, ct);
+            if (!result.Success)
+            {
+                await Send.ErrorsAsync(400, ct);
+                return;
+            }
+            var response = new ChangeUserPasswordResponse(result.Success, result.Message);
+            await Send.OkAsync(response, ct);
         }
-
-
-        if (string.IsNullOrEmpty(req.NewPassword) || string.IsNullOrWhiteSpace(req.NewPassword))
+        catch (Exception)
         {
-            req.NewPassword = "88888888";
+            await Send.ErrorsAsync(500, ct);
         }
-
-        if (req.NewPassword.Length < 6)
-        {
-            await Send.ErrorsAsync(400, ct);
-            return;
-        }
-
-        userToChange.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
-        await _dbContext.SaveChangesAsync(ct);
-        var response = new ChangeUserPasswordResponse
-        {
-            UserId = userToChange.Id,
-            Message = "用户密码已更改"
-        };
-        await Send.OkAsync(response, ct);
     }
 }
 
-public class ChangeUserPasswordRequest
-{
-    public Guid UserId { get; set; }
-    public string NewPassword { get; set; } = string.Empty;
-}
-
-public class ChangeUserPasswordResponse
-{
-    public Guid UserId { get; set; }
-    public string Message { get; set; } = string.Empty;
-}

@@ -1,16 +1,14 @@
-using MembershipSystemAPI.Models;
-using MembershipSystemAPI.Services;
-using Microsoft.AspNetCore.Authorization;
+using MembershipSystemAPI.DTOs;
 
 namespace MembershipSystemAPI.Endpoints.Users;
 
 public class GetPathConfigurationEndpoint : EndpointWithoutRequest<PathConfigurationResponse>
 {
-    private readonly IPathService _pathService;
+    private readonly IMediator _mediator;
 
-    public GetPathConfigurationEndpoint(IPathService pathService)
+    public GetPathConfigurationEndpoint(IMediator mediator)
     {
-        _pathService = pathService;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -36,17 +34,16 @@ public class GetPathConfigurationEndpoint : EndpointWithoutRequest<PathConfigura
 
         try
         {
-            var pathConfig = await _pathService.GetUserPathConfigurationAsync(userId);
-            await Send.OkAsync(new PathConfigurationResponse
+            var query = new GetPathConfigurationQuery(userId);
+            var pathConfig = await _mediator.Send(query, ct);
+
+            if (pathConfig == null)
             {
-                BasePath = pathConfig.BasePath,
-                MembershipCardFilePath = pathConfig.MembershipCardFilePath,
-                AllowCustomPaths = pathConfig.AllowCustomPaths
-            }, cancellation: ct);
-        }
-        catch (ArgumentException)
-        {
-            await Send.NotFoundAsync(ct);
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+
+            await Send.OkAsync(pathConfig, cancellation: ct);
         }
         catch (Exception ex)
         {
@@ -56,13 +53,13 @@ public class GetPathConfigurationEndpoint : EndpointWithoutRequest<PathConfigura
     }
 }
 
-public class UpdatePathConfigurationEndpoint : Endpoint<PathConfigurationUpdateRequest, PathConfigurationResponse>
+public class UpdatePathConfigurationEndpoint : Endpoint<UpdatePathConfigurationRequest, PathConfigurationResponse>
 {
-    private readonly IPathService _pathService;
+    private readonly IMediator _mediator;
 
-    public UpdatePathConfigurationEndpoint(IPathService pathService)
+    public UpdatePathConfigurationEndpoint(IMediator mediator)
     {
-        _pathService = pathService;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -76,7 +73,7 @@ public class UpdatePathConfigurationEndpoint : Endpoint<PathConfigurationUpdateR
         });
     }
 
-    public override async Task HandleAsync(PathConfigurationUpdateRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdatePathConfigurationRequest req, CancellationToken ct)
     {
         var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
 
@@ -88,13 +85,24 @@ public class UpdatePathConfigurationEndpoint : Endpoint<PathConfigurationUpdateR
 
         try
         {
-            var updatedConfig = await _pathService.UpdateUserPathConfigurationAsync(userId, req);
-            await Send.OkAsync(new PathConfigurationResponse
+            req.Validate(); // 验证请求参数
+
+            var command = new UpdatePathConfigurationCommand(
+                userId,
+                req.BasePath,
+                req.MembershipCardFilePath,
+                req.AllowCustomPaths
+            );
+
+            var updatedConfig = await _mediator.Send(command, ct);
+
+            if (updatedConfig == null)
             {
-                BasePath = updatedConfig.BasePath,
-                MembershipCardFilePath = updatedConfig.MembershipCardFilePath,
-                AllowCustomPaths = updatedConfig.AllowCustomPaths
-            }, cancellation: ct);
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+
+            await Send.OkAsync(updatedConfig, cancellation: ct);
         }
         catch (ArgumentException ex)
         {
@@ -107,11 +115,4 @@ public class UpdatePathConfigurationEndpoint : Endpoint<PathConfigurationUpdateR
             await Send.ErrorsAsync(500, ct);
         }
     }
-}
-
-public class PathConfigurationResponse
-{
-    public string BasePath { get; set; } = "D:";
-    public string MembershipCardFilePath { get; set; } = "CDK.txt";
-    public bool AllowCustomPaths { get; set; } = true;
 }

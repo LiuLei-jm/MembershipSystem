@@ -21,7 +21,7 @@ import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 
 const apiClient = axios.create({
-  baseURL: 'https://mir.lovemumu.top:5451', // Replace with your API base URL
+  baseURL: 'https://localhost:4000', // Replace with your API base URL
   headers: {
     'Content-Type': 'application/json',
   },
@@ -42,7 +42,14 @@ apiClient.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 400:
-          message = '请求参数错误'
+          // 使用 API 传递的错误消息，如果没有则使用默认消息
+          // 处理验证错误结构: {statusCode: 400, message: "One or more errors occurred!", errors: {password: ["密码必须包含小写字母、大写字母和数字"]}}
+          if (error.response.data?.errors) {
+            const errorMessages = Object.values(error.response.data.errors).flat()
+            message = errorMessages.length > 0 ? errorMessages.join(', ') : '请求参数错误'
+          } else {
+            message = error.response.data?.message || error.response.data || '请求参数错误'
+          }
           break
         case 401:
           message = '未授权，请登录'

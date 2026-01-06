@@ -1,15 +1,16 @@
-﻿
+﻿using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.Admins;
 
 public class DeleteUser : Endpoint<DeleteUserRequest, DeleteUserResponse>
 {
+    private readonly IMediator _mediator;
     private readonly ILogger<DeleteUser> _logger;
-    private readonly MemDbContext _dbContext;
 
-    public DeleteUser(ILogger<DeleteUser> logger, MemDbContext dbContext)
+    public DeleteUser(IMediator mediator, ILogger<DeleteUser> logger)
     {
+        _mediator = mediator;
         _logger = logger;
-        _dbContext = dbContext;
     }
 
     public override void Configure()
@@ -28,39 +29,33 @@ public class DeleteUser : Endpoint<DeleteUserRequest, DeleteUserResponse>
     }
     public override async Task HandleAsync(DeleteUserRequest req, CancellationToken ct)
     {
-        var userToDelete = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == req.UserId);
-        if (userToDelete == null)
+        try
         {
-            await Send.NotFoundAsync(ct);
+            var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+            if (currentUserId == req.UserId.ToString())
+            {
+                _logger.LogWarning("管理员尝试删除自己，操作被阻止。");
+                await Send.ErrorsAsync(400, ct);
+                return;
+            }
+            var command = new DeleteUserCommand(req.UserId);
+            var result = await _mediator.Send(command, ct);
+            if (!result.Success)
+            {
+                _logger.LogWarning("尝试删除不存在的用户，用户ID: {UserId}", req.UserId);
+                await Send.NotFoundAsync(ct);
+            }
+            await Send.OkAsync(new DeleteUserResponse
+            (
+                 req.UserId,
+                 result.Message
+            ), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理删除用户请求时出错");
+            await Send.ErrorsAsync(500, ct);
             return;
         }
-
-        var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
-        if (currentUserId == req.UserId.ToString())
-        {
-            _logger.LogWarning("管理员尝试删除自己，操作被阻止。");
-            await Send.ErrorsAsync(400, ct);
-            return;
-        }
-
-        _dbContext.Users.Remove(userToDelete);
-        await _dbContext.SaveChangesAsync(ct);
-        var response = new DeleteUserResponse
-        {
-            UserId = userToDelete.Id,
-            Message = "用户已删除"
-        };
-        await Send.OkAsync(response, ct);
     }
-}
-
-public class DeleteUserRequest
-{
-    public Guid UserId { get; set; }
-}
-
-public class DeleteUserResponse
-{
-    public Guid UserId { get; set; }
-    public string Message { get; set; } = string.Empty;
 }

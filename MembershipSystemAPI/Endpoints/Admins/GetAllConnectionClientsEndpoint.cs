@@ -1,13 +1,14 @@
 ﻿namespace MembershipSystemAPI.Endpoints.Admins;
-using ConnectionInfo = MembershipSystemAPI.Models.ConnectionInfo;
+
+using ConnectionInfo = MembershipSystemAPI.Domain.Entities.ConnectionInfo;
 
 public class GetAllConnectionClientsEndpoint : EndpointWithoutRequest<List<ConnectionInfo>>
 {
-    private readonly IConnectionManager _connectionManager;
+    private readonly IMediator _mediator;
 
-    public GetAllConnectionClientsEndpoint(IConnectionManager connectionManager)
+    public GetAllConnectionClientsEndpoint(IMediator mediator)
     {
-        _connectionManager = connectionManager;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -25,7 +26,15 @@ public class GetAllConnectionClientsEndpoint : EndpointWithoutRequest<List<Conne
     }
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var allConnections = _connectionManager.GetAllConnections().ToList();
-        await Send.OkAsync(allConnections, ct);
+        try
+        {
+            var query = new GetAllConnectionClientsQuery();
+            var allConnections = await _mediator.Send(query, ct);
+            await Send.OkAsync(allConnections.ToList(), ct);
+        }
+        catch (Exception)
+        {
+            await Send.ErrorsAsync(500, ct);
+        }
     }
 }
