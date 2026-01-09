@@ -6,9 +6,7 @@ using MembershipSystemAPI.Middleware;
 var builder = WebApplication.CreateBuilder(args);
 
 // 配置Serilog
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(builder.Configuration)
-    .CreateLogger();
+Log.Logger = new LoggerConfiguration().ReadFrom.Configuration(builder.Configuration).CreateLogger();
 
 builder.Host.UseSerilog();
 
@@ -34,22 +32,38 @@ builder.Services.AddApplicationServices(builder.Configuration);
 builder.Services.AddRateLimitingServices(builder.Configuration);
 
 // 基础服务
-builder.Services.AddFastEndpoints()
-            .SwaggerDocument();
+builder.Services.AddFastEndpoints().SwaggerDocument();
+
 // CORS服务
 builder.Services.AddCorsServices();
 
 var app = builder.Build();
 
 // 数据库迁移
-using (var scope = app.Services.CreateScope())
+if (app.Environment.IsDevelopment())
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<MemDbContext>();
     db.Database.Migrate();
+    // 种子数据
+    await app.SeedDefaultAdminUserAsync();
 }
+else
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<MemDbContext>();
 
-// 种子数据
-await app.SeedDefaultAdminUserAsync();
+    try
+    {
+        db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        Directory.CreateDirectory(@"D:\Logs\MembershipAPI");
+        File.WriteAllText(@"D:\Logs\MembershipAPI\db-migration-error.txt", ex.ToString());
+        throw;
+    }
+}
 
 // 中间件配置
 app.UseGlobalExceptionHandling();
@@ -61,8 +75,7 @@ app.UseAuthorization();
 // 端点配置
 if (app.Environment.IsDevelopment())
 {
-    app.UseFastEndpoints()
-        .UseSwaggerGen();
+    app.UseFastEndpoints().UseSwaggerGen();
 }
 else
 {

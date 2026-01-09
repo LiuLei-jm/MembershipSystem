@@ -9,13 +9,7 @@
 
     <!-- 搜索栏 -->
     <div class="search-bar">
-      <el-input
-        v-model="searchKeyword"
-        placeholder="搜索用户名"
-        style="width: 300px"
-        clearable
-        @input="handleSearch"
-      >
+      <el-input v-model="searchKeyword" placeholder="搜索用户名" style="width: 300px" clearable @input="handleSearch">
         <template #prefix>
           <el-icon>
             <Search />
@@ -26,12 +20,7 @@
     </div>
 
     <!-- 用户列表 -->
-    <el-table
-      :data="filteredUsers"
-      v-loading="loading"
-      style="width: 100%; margin-top: 20px"
-      stripe
-    >
+    <el-table :data="filteredUsers" v-loading="loading" style="width: 100%; margin-top: 20px" stripe>
       <el-table-column prop="username" label="用户名" width="150" />
       <el-table-column prop="role" label="角色" width="100">
         <template #default="{ row }">
@@ -42,7 +31,7 @@
         <template #default="{ row }">
           <el-tag :type="row.isActive ? 'success' : 'warning'">{{
             row.isActive ? '激活' : '禁用'
-          }}</el-tag>
+            }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="createdAt" label="创建时间" width="180">
@@ -58,11 +47,7 @@
       <el-table-column label="操作" min-width="200">
         <template #default="{ row }">
           <el-button size="small" @click="handleResetPassword(row)">重置密码</el-button>
-          <el-button
-            size="small"
-            :type="row.isActive ? 'warning' : 'success'"
-            @click="handleToggleStatus(row)"
-          >
+          <el-button size="small" :type="row.isActive ? 'warning' : 'success'" @click="handleToggleStatus(row)">
             {{ row.isActive ? '禁用' : '激活' }}
           </el-button>
           <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
@@ -70,15 +55,9 @@
       </el-table-column>
     </el-table>
     <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="filteredUsers.length"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper" :total="filteredUsers.length" @size-change="handleSizeChange"
+        @current-change="handleCurrentChange" />
     </div>
 
     <!-- 新建用户对话框 -->
@@ -88,12 +67,7 @@
           <el-input v-model="createForm.username" placeholder="请输入用户名" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input
-            v-model="createForm.password"
-            type="password"
-            placeholder="请输入密码"
-            show-password
-          />
+          <el-input v-model="createForm.password" type="password" placeholder="请输入密码" show-password />
         </el-form-item>
         <el-form-item label="角色" prop="role">
           <el-select v-model="createForm.role" placeholder="请选择角色">
@@ -126,6 +100,7 @@ const showCreateDialog = ref<boolean>(false)
 const createFormRef = ref<FormInstance>()
 const pageSize = ref<number>(1)
 const currentPage = ref<number>(10)
+const defaultPassword = '1qaz@WSX'
 
 // 创建用户表单
 const createForm = ref({
@@ -185,7 +160,7 @@ const handleSearch = () => {
 const handleResetPassword = async (user: User) => {
   try {
     await ElMessageBox.confirm(
-      `确定要重置用户 "${user.username}" 的密码吗？密码将重置为 "888888"。`,
+      `确定要重置用户 "${user.username}" 的密码吗？密码将重置为 "${defaultPassword}"。`,
       '重置密码确认',
       {
         confirmButtonText: '确定',
@@ -202,10 +177,10 @@ const handleResetPassword = async (user: User) => {
 
     await api.changeUserPassword({
       userId: user.id,
-      newPassword: '88888888',
+      newPassword: defaultPassword,
     })
 
-    ElMessage.success(`用户 "${user.username}" 的密码已重置为 "88888888"`)
+    ElMessage.success(`用户 "${user.username}" 的密码已重置为 "${defaultPassword}"`)
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('重置密码失败')
