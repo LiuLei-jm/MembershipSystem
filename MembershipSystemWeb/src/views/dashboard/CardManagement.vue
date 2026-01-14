@@ -14,46 +14,21 @@
       <div class="filter-controls">
         <div class="filter-item">
           <span class="filter-label">会员名:</span>
-          <el-input
-            v-model="filterForm.membershipName"
-            placeholder="请输入会员名"
-            clearable
-            @input="handleSearch"
-            style="width: 180px"
-          />
+          <el-input v-model="filterForm.membershipName" placeholder="请输入会员名" clearable @input="handleSearch"
+            style="width: 180px" />
         </div>
         <div class="filter-item">
           <span class="filter-label">卡号:</span>
-          <el-input
-            v-model="filterForm.cdk"
-            placeholder="请输入卡号"
-            clearable
-            @input="handleSearch"
-            style="width: 180px"
-          />
+          <el-input v-model="filterForm.cdk" placeholder="请输入卡号" clearable @input="handleSearch" style="width: 180px" />
         </div>
         <div class="filter-item">
           <span class="filter-label">开始时间:</span>
-          <el-date-picker
-            v-model="filterForm.dateRange"
-            type="datetimerange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            format="YYYY-MM-DD HH:mm:ss"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            @change="handleSearch"
-            style="width: 260px"
-          />
+          <el-date-picker v-model="filterForm.dateRange" type="datetimerange" range-separator="至"
+            start-placeholder="开始日期" end-placeholder="结束日期" format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DD HH:mm:ss" @change="handleSearch" style="width: 260px" />
         </div>
         <div class="filter-item">
-          <el-switch
-            v-model="showAllCards"
-            size="large"
-            inline-prompt
-            active-text="显示所有"
-            inactive-text="仅显示有效"
-          />
+          <el-switch v-model="showAllCards" size="large" inline-prompt active-text="显示所有" inactive-text="仅显示有效" />
         </div>
         <div class="filter-actions">
           <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
@@ -61,14 +36,8 @@
         </div>
       </div>
 
-      <el-alert
-        v-if="store.status === 'error'"
-        :title="store.error || '加载会员卡失败'"
-        type="error"
-        show-icon
-        :closable="false"
-        style="margin-bottom: 20px"
-      />
+      <el-alert v-if="store.status === 'error'" :title="store.error || '加载会员卡失败'" type="error" show-icon
+        :closable="false" style="margin-bottom: 20px" />
     </div>
 
     <el-table :data="paginatedCards" stripe style="width: 100%" v-loading="loading">
@@ -95,31 +64,17 @@
       </el-table-column>
       <el-table-column label="操作" width="220">
         <template #default="{ row }">
-          <el-button class="card-button" type="primary" size="small" @click="openEditDialog(row)"
-            >编辑</el-button
-          >
-          <el-button class="card-button" type="info" size="small" @click="reissueCard(row)"
-            >补发</el-button
-          >
-          <el-button class="card-button" type="warning" size="small" @click="clearCard(row)"
-            >清理</el-button
-          >
-          <el-button class="card-button" type="danger" size="small" @click="deleteCard(row)"
-            >删除</el-button
-          >
+          <el-button class="card-button" type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
+          <el-button class="card-button" type="info" size="small" @click="reissueCard(row)">补发</el-button>
+          <el-button class="card-button" type="warning" size="small" @click="clearCard(row)">清理</el-button>
+          <el-button class="card-button" type="danger" size="small" @click="deleteCard(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
     <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="filteredCards.length"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper" :total="filteredCards.length" @size-change="handleSizeChange"
+        @current-change="handleCurrentChange" />
     </div>
 
     <!-- 金额合计显示区域 -->
@@ -149,25 +104,15 @@
     </div>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle">
-      <CreateCardDialog
-        :model-value="dialogVisible"
-        @update:modelValue="dialogVisible = $event"
-        @success="handleRefresh"
-      />
+      <CreateCardDialog :model-value="dialogVisible" @update:modelValue="dialogVisible = $event"
+        @success="handleRefresh" />
     </el-dialog>
     <el-dialog v-model="editDialogVisible" title="编辑会员卡">
-      <EditCardDialog
-        :model-value="editDialogVisible"
-        :card="selectedCard"
-        @update:modelValue="editDialogVisible = $event"
-        @success="handleRefresh"
-      />
+      <EditCardDialog :model-value="editDialogVisible" :card="selectedCard"
+        @update:modelValue="editDialogVisible = $event" @success="handleRefresh" />
     </el-dialog>
     <el-dialog v-model="pathConfigDialogVisible" title="路径配置">
-      <PathConfigDialog
-        :model-value="pathConfigDialogVisible"
-        @update:modelValue="pathConfigDialogVisible = $event"
-      />
+      <PathConfigDialog :model-value="pathConfigDialogVisible" @update:modelValue="pathConfigDialogVisible = $event" />
     </el-dialog>
   </el-card>
 </template>

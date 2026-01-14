@@ -114,16 +114,25 @@ const populateForm = () => {
   }
 }
 
+// Watch for changes to the card prop to immediately populate the form
+watch(
+  () => props.card,
+  (newCard) => {
+    if (newCard) {
+      populateForm()
+    } else {
+      resetForm()
+    }
+  },
+  { immediate: true }
+)
+
+// Watch for dialog visibility changes
 watch(
   () => props.modelValue,
   (newVal) => {
-    if (newVal) {
-      // When dialog opens, populate form with card data
-      setTimeout(() => {
-        populateForm()
-      }, 0)
-    } else {
-      // When dialog closes, reset form
+    if (!newVal) {
+      // When dialog closes, reset form after a short delay to allow for animation
       setTimeout(resetForm, 300)
     }
   },
