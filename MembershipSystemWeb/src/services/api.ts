@@ -21,7 +21,7 @@ import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
 
 const apiClient = axios.create({
-  baseURL: 'https://mir.lovemumu.top:5451', // Replace with your API base URL
+  baseURL: 'https://localhost:4000', // Replace with your API base URL
   headers: {
     'Content-Type': 'application/json',
   },

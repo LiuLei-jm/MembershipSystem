@@ -45,8 +45,13 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<MemDbContext>();
     db.Database.Migrate();
+<<<<<<< HEAD
     await app.SeedDefaultAdminUserAsync();
     // 种子数据
+=======
+    // 种子数据
+    await app.SeedDefaultAdminUserAsync();
+>>>>>>> main
 }
 else
 {
@@ -56,12 +61,18 @@ else
     try
     {
         db.Database.Migrate();
+<<<<<<< HEAD
         await app.SeedDefaultAdminUserAsync();
     }
     catch (Exception ex)
     {
         // In production, ensure proper environment variables are set for database connection
         // Database__ConnectionString or ConnectionStrings__SqliteConnection should be set as environment variables
+=======
+    }
+    catch (Exception ex)
+    {
+>>>>>>> main
         Directory.CreateDirectory(@"D:\Logs\MembershipAPI");
         File.WriteAllText(@"D:\Logs\MembershipAPI\db-migration-error.txt", ex.ToString());
         throw;
