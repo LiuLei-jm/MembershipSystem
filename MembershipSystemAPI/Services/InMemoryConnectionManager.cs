@@ -1,5 +1,6 @@
 ﻿
-using ConnectionInfo = MembershipSystemAPI.Models.ConnectionInfo;
+using MembershipSystemAPI.Data;
+using ConnectionInfo = MembershipSystemAPI.Domain.Entities.ConnectionInfo;
 
 namespace MembershipSystemAPI.Services;
 
@@ -7,7 +8,7 @@ public class InMemoryConnectionManager : IConnectionManager
 {
     private readonly ConcurrentDictionary<string, ConcurrentBag<ConnectionInfo>> _connections = new();
     private readonly ConcurrentDictionary<string, string> _connectionIdToApiKey = new();
-        private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceProvider _serviceProvider;
 
     public InMemoryConnectionManager(IServiceProvider serviceProvider)
     {
@@ -41,10 +42,10 @@ public class InMemoryConnectionManager : IConnectionManager
         return allConnections;
     }
 
-    public IEnumerable<Models.ConnectionInfo> GetConnections(string apiKey)
+    public IEnumerable<ConnectionInfo> GetConnections(string apiKey)
     {
         _connections.TryGetValue(apiKey, out var connectionBag);
-        return connectionBag ?? Enumerable.Empty<Models.ConnectionInfo>();
+        return connectionBag ?? Enumerable.Empty<ConnectionInfo>();
     }
 
     public int GetConnectionCount(string apiKey)

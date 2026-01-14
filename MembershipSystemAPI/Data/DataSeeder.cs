@@ -1,4 +1,9 @@
-﻿namespace MembershipSystemAPI.Data;
+﻿
+
+using MembershipSystemAPI.Domain.Entities;
+using MembershipSystemAPI.Domain.Enums;
+
+namespace MembershipSystemAPI.Data;
 
 public static class DataSeeder
 {
@@ -12,21 +17,13 @@ public static class DataSeeder
             var logger = services.GetRequiredService<ILogger<Program>>();
             const string defaultAdminUsername = "MemAdmin";
             const string defaultAdminPassword = "MemAdmin2025";
-            const string defaultAdminRole = "Admin";
             if (!await dbContext.Users.AnyAsync(u => u.Username == defaultAdminUsername))
             {
                 logger.LogInformation("没有找到默认管理员账户，开始创建...");
-                var adminUser = new User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = defaultAdminUsername,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultAdminPassword),
-                    Role = defaultAdminRole,
-                    IsActive = true,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ApiKey = new ApiKey(),
-                    PathConfiguration = new PathConfiguration()
-                };
+                var Id = Guid.NewGuid();
+                var defaultAdminPasswordHash = BCrypt.Net.BCrypt.HashPassword(defaultAdminPassword);
+                var adminUser = User.Create(defaultAdminUsername, defaultAdminPasswordHash, UserRole.Admin);
+
                 await dbContext.Users.AddAsync(adminUser);
                 await dbContext.SaveChangesAsync();
                 logger.LogInformation("默认管理员已创建: {Username} 密码: {Password}", defaultAdminUsername, defaultAdminPassword);

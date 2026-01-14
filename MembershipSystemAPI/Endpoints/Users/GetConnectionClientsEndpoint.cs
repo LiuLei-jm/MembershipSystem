@@ -1,19 +1,19 @@
 ﻿namespace MembershipSystemAPI.Endpoints.Users;
 
+using MediatR;
+using MembershipSystemAPI.CQRS.MediatRQueries;
 using System.Threading;
 using System.Threading.Tasks;
-using ConnectionInfo = Models.ConnectionInfo;
+using ConnectionInfo = MembershipSystemAPI.Domain.Entities.ConnectionInfo;
 
 public class GetConnectionClientsEndpoint : EndpointWithoutRequest<List<ConnectionInfo>>
 {
-    private readonly MemDbContext _dbContext;
-    private readonly IConnectionManager _connectionManager;
+    private readonly IMediator _mediator;
     private readonly ILogger<GetConnectionClientsEndpoint> _logger;
 
-    public GetConnectionClientsEndpoint(MemDbContext dbContext, IConnectionManager connectionManager, ILogger<GetConnectionClientsEndpoint> logger)
+    public GetConnectionClientsEndpoint(IMediator mediator, ILogger<GetConnectionClientsEndpoint> logger)
     {
-        _dbContext = dbContext;
-        _connectionManager = connectionManager;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -38,13 +38,16 @@ public class GetConnectionClientsEndpoint : EndpointWithoutRequest<List<Connecti
             return;
         }
 
-        var apiKeyObj = await _dbContext.ApiKeys.AsNoTracking().FirstOrDefaultAsync(k => k.UserId == currentUserGuid, ct);
-        if (apiKeyObj == null)
+        try
         {
-            await Send.OkAsync(new List<ConnectionInfo>(), ct);
-            return;
+            var query = new GetUserConnectionClientsQuery(currentUserGuid);
+            var connectedClients = await _mediator.Send(query, ct);
+            await Send.OkAsync(connectedClients.ToList(), ct);
         }
-        var connectedClients = _connectionManager.GetConnections(apiKeyObj.Key).ToList();
-        await Send.OkAsync(connectedClients, ct);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取用户连接客户端时发生错误，用户ID: {UserId}", currentUserId);
+            await Send.ErrorsAsync(500, ct);
+        }
     }
 }

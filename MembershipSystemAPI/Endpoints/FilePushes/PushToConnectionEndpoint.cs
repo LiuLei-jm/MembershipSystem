@@ -1,18 +1,14 @@
-﻿
+using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.FilePushes;
 
 public class PushToConnectionEndpoint : Endpoint<PushToConnectionRequest, PushToConnectionResponse>
 {
-    public IHubContext<FilePushHub> HubContext { get; set; } = null!;
-    private readonly MemDbContext _dbContext;
-    private readonly IConnectionManager _connectionManager;
-    private readonly ILogger<PushToConnectionEndpoint> _logger;
+    private readonly IMediator _mediator;
 
-    public PushToConnectionEndpoint(MemDbContext dbContext, IConnectionManager connectionManager, ILogger<PushToConnectionEndpoint> logger)
+    public PushToConnectionEndpoint(IMediator mediator)
     {
-        _dbContext = dbContext;
-        _connectionManager = connectionManager;
-        _logger = logger;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -25,55 +21,36 @@ public class PushToConnectionEndpoint : Endpoint<PushToConnectionRequest, PushTo
             s.Description = "此端点需要用户认证。它会查找与当前用户关联的 API Key，并向指定连接 ID 的 SignalR 客户端发送一条文件写入命令。";
         });
     }
+
     public override async Task HandleAsync(PushToConnectionRequest req, CancellationToken ct)
     {
         var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
         if (!Guid.TryParse(currentUserId, out var currentUserGuid))
         {
-            _logger.LogWarning($"无效的用户 ID. {currentUserId}");
             await Send.UnauthorizedAsync(ct);
             return;
         }
 
-        var apiKeyObj = await _dbContext.ApiKeys.AsNoTracking().FirstOrDefaultAsync(k => k.UserId == currentUserGuid, ct);
-        if (apiKeyObj == null)
-        {
-            _logger.LogWarning($"未找到与用户 ID 关联的 API Key. UserId: {currentUserGuid}");
-            await Send.ForbiddenAsync(ct);
-            return;
-        }
+        var command = new PushToConnectionCommand(
+            CurrentUserId: currentUserGuid,
+            TargetConnectionId: req.TargetConnectionId,
+            FilePath: req.FilePath,
+            Content: req.Content,
+            LogMessage: req.LogMessage
+        );
 
-        var userConnections = _connectionManager.GetConnections(apiKeyObj.Key);
-        if (!userConnections.Any(c => c.ConnectionId == req.TargetConnectionId))
-        {
-            _logger.LogWarning($"尝试访问不属于用户的连接. UserId: {currentUserGuid}, ConnectionId: {req.TargetConnectionId}");
-            await Send.ForbiddenAsync(ct);
-            return;
-        }
+        var result = await _mediator.Send(command, ct);
 
-        var command = new PushToConnectionRequest
+        if (result.Success)
         {
-            FilePath = req.FilePath,
-            Content = req.Content + Environment.NewLine,
-            LogMessage = req.LogMessage
-        };
-        await HubContext.Clients.Client(req.TargetConnectionId).SendAsync("ReceiveWriteCommand", command, ct);
-        await Send.OkAsync(new PushToConnectionResponse
+            await Send.OkAsync(new PushToConnectionResponse
+            (
+                result.Success, result.Message
+            ), ct);
+        }
+        else
         {
-            Message = "命令已发送至指定的客户端."
-        }, ct);
+            await Send.ForbiddenAsync(ct);
+        }
     }
-}
-
-public class PushToConnectionRequest
-{
-    public string TargetConnectionId { get; set; } = string.Empty;
-    public string FilePath { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public string LogMessage { get; set; } = string.Empty;
-}
-
-public class PushToConnectionResponse
-{
-    public string Message { get; set; } = "命令已发送至指定的客户端.";
 }

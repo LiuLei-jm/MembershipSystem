@@ -1,85 +1,88 @@
-var bld = WebApplication.CreateBuilder();
-bld.Services.AddFastEndpoints()
-            .SwaggerDocument();
-bld.Services.AddDbContext<MemDbContext>(options =>
-    options.UseSqlite(bld.Configuration.GetConnectionString("SqliteConnection")));
-bld.Services.AddAuthenticationJwtBearer(s => s.SigningKey = bld.Configuration["Jwt:SecretKey"]);
-bld.Services.AddSignalR();
-bld.Services.AddSingleton<IUserIdProvider, ApiKeyBasedUserIdProvider>();
-bld.Services.AddSingleton<IConnectionManager, InMemoryConnectionManager>();
-bld.Services.AddScoped<ICdkService, CdkService>();
-bld.Services.AddScoped<IPathService, PathService>();
-bld.Services.AddHostedService<ExpiredMembershipProcessor>();
+using MembershipSystemAPI.Configuration;
+using MembershipSystemAPI.Data;
+using MembershipSystemAPI.Hubs;
+using MembershipSystemAPI.Middleware;
 
-bld.Services.AddRateLimiter(options =>
+var builder = WebApplication.CreateBuilder(args);
+
+// 配置Serilog
+Log.Logger = new LoggerConfiguration().ReadFrom.Configuration(builder.Configuration).CreateLogger();
+
+builder.Host.UseSerilog();
+
+// 配置设置
+builder.Services.AddConfigurationSettings(builder.Configuration);
+
+// 数据库服务
+builder.Services.AddDatabaseServices(builder.Configuration);
+
+// CQRS服务
+builder.Services.AddCQRSServices();
+
+// 领域服务
+builder.Services.AddDomainServices();
+
+// 仓储服务
+builder.Services.AddRepositoryServices();
+
+// 应用服务
+builder.Services.AddApplicationServices(builder.Configuration);
+
+// 限流服务
+builder.Services.AddRateLimitingServices(builder.Configuration);
+
+// 基础服务
+builder.Services.AddFastEndpoints().SwaggerDocument();
+
+// CORS服务
+builder.Services.AddCorsServices();
+
+var app = builder.Build();
+
+// 数据库迁移
+if (app.Environment.IsDevelopment())
 {
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.OnRejected = async (context, ct) =>
-    {
-        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        if (!context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
-        {
-            retryAfter = TimeSpan.FromSeconds(60);
-        }
-        await context.HttpContext.Response.WriteAsync($"请求过于频繁，请 {retryAfter.TotalSeconds} 秒后重试。", ct);
-    };
-
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-    {
-        var ipAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        return RateLimitPartition.GetFixedWindowLimiter(partitionKey: ipAddress, _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 100,
-            Window = TimeSpan.FromMinutes(1),
-        });
-    });
-
-    options.AddFixedWindowLimiter("login-policy", opt =>
-    {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 2;
-    });
-
-    options.AddFixedWindowLimiter("register-policy", opt =>
-    {
-        opt.PermitLimit = 3;
-        opt.Window = TimeSpan.FromHours(1);
-        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        opt.QueueLimit = 0;
-    });
-});
-
-bld.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(builder =>
-    {
-        builder.AllowAnyOrigin()
-               .AllowAnyHeader()
-               .AllowAnyMethod();
-    });
-});
-
-var app = bld.Build();
-using (var scope = app.Services.CreateScope())
-{
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<MemDbContext>();
     db.Database.Migrate();
+    // 种子数据
+    await app.SeedDefaultAdminUserAsync();
 }
-await app.SeedDefaultAdminUserAsync();
+else
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<MemDbContext>();
+
+    try
+    {
+        db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        Directory.CreateDirectory(@"D:\Logs\MembershipAPI");
+        File.WriteAllText(@"D:\Logs\MembershipAPI\db-migration-error.txt", ex.ToString());
+        throw;
+    }
+}
+
+// 中间件配置
+app.UseGlobalExceptionHandling();
+app.UseSecurityHeaders();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// 端点配置
 if (app.Environment.IsDevelopment())
 {
-    app.UseFastEndpoints()
-        .UseSwaggerGen();
+    app.UseFastEndpoints().UseSwaggerGen();
 }
 else
 {
     app.UseFastEndpoints();
 }
+
 app.UseCors();
 app.MapHub<FilePushHub>("/filePushHub");
+
 app.Run();

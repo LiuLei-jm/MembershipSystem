@@ -1,23 +1,18 @@
 ﻿
-using MembershipSystemAPI.Endpoints.FilePushes;
+using MembershipSystemAPI.Data;
+using MembershipSystemAPI.Domain.Entities;
+using MembershipSystemAPI.DTOs;
+using MembershipSystemAPI.Hubs;
+using MembershipSystemAPI.Services;
 
 namespace MembershipSystemAPI.Endpoints.Memberships;
 
 public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, CreateMembershipResponse>
 {
-    private readonly IHubContext<FilePushHub> _hubContext;
-    private readonly MemDbContext _dbContext;
-    private readonly ILogger<CreateMembershipEndpoint> _logger;
-    private readonly ICdkService _cdkService;
-    private readonly IPathService _pathService;
-
-    public CreateMembershipEndpoint(MemDbContext dbContext, ILogger<CreateMembershipEndpoint> logger, ICdkService cdkService, IHubContext<FilePushHub> hubContext, IPathService pathService)
+    private readonly IMediator _mediator;
+    public CreateMembershipEndpoint(IMediator mediator)
     {
-        _dbContext = dbContext;
-        _logger = logger;
-        _cdkService = cdkService;
-        _hubContext = hubContext;
-        _pathService = pathService;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -36,73 +31,51 @@ public class CreateMembershipEndpoint : Endpoint<CreateMembershipRequest, Create
 
     public override async Task HandleAsync(CreateMembershipRequest req, CancellationToken ct)
     {
-        var response = new CreateMembershipResponse();
         var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
         if (!Guid.TryParse(currentUserId, out var currentUserGuid))
         {
-            response.Message = "未能获取当前用户ID";
-            await Send.ResponseAsync(response, 401, ct);
-            return;
+            await Send.ResponseAsync(new CreateMembershipResponse
+            (
+                false,
+                Guid.Empty,
+                string.Empty,
+                DateTimeOffset.MinValue,
+                 "无效的用户标识"
+            ), 401, ct);
         }
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == currentUserGuid, ct);
-        if (user is null)
+        var command = new CreateMembershipCommand
+        (
+            currentUserGuid,
+            req.MembershipName,
+            req.Cdk,
+            req.DurationInDays,
+            req.Amount,
+            req.StartTime,
+            req.Notes
+        );
+        var result =  await _mediator.Send(command, ct);
+        if (result.Success)
         {
-            response.Message = "用户不存在";
-            await Send.ResponseAsync(response, 401, ct);
-            return;
+            await Send.OkAsync(new CreateMembershipResponse
+            (
+                result.Success,
+                result.CardId,
+                result.Cdk,
+                result.EndTime,
+                 result.Message
+            ), ct);
         }
-
-        var cdk = string.IsNullOrEmpty(req.Cdk) ? _cdkService.GenerateCdk(req.Amount) : req.Cdk;
-        var endTime = req.StartTime.AddDays(req.DurationInDays);
-        var newCard = new MembershipCard
+        else
         {
-            UserId = user.Id,
-            MembershipName = req.MembershipName,
-            DurationInDays = req.DurationInDays,
-            Cdk = cdk,
-            Amount = req.Amount,
-            StartTime = req.StartTime,
-            EndTime = endTime,
-            Notes = req.Notes!
-        };
-        await _dbContext.MembershipCards.AddAsync(newCard, ct);
-        await _dbContext.SaveChangesAsync(ct);
-
-        var apiKeyObj = await _dbContext.ApiKeys.FirstOrDefaultAsync(a => a.UserId == currentUserGuid, ct);
-        if (apiKeyObj != null)
-        {
-            var pathConfig = await _pathService.GetUserPathConfigurationAsync(currentUserGuid);
-                var command = new SendAppendRequest
-            {
-                FilePath = Path.Combine(pathConfig.BasePath, pathConfig.MembershipCardFilePath),
-                Content = cdk + Environment.NewLine,
-                LogMessage = $"写入新的会员CDK: {cdk}"
-            };
-            await _hubContext.Clients.User(apiKeyObj.Key).SendAsync("ReceiveWriteCommand", command, ct);
+            await Send.ResponseAsync(new CreateMembershipResponse
+            (
+                result.Success,
+                Guid.Empty,
+                string.Empty,
+                DateTimeOffset.MinValue,
+                 result.Message
+            ), 400, ct);
         }
-
-        response.Id = newCard.Id;
-        response.Cdk = newCard.Cdk;
-        response.EndTime = newCard.EndTime;
-        response.Message = "会员卡创建成功";
-        await Send.OkAsync(response, ct);
     }
 }
 
-public class CreateMembershipRequest
-{
-    public string MembershipName { get; set; } = string.Empty;
-    public string? Cdk { get; set; }
-    public int DurationInDays { get; set; }
-    public decimal Amount { get; set; }
-    public DateTimeOffset StartTime { get; set; } = DateTimeOffset.UtcNow;
-    public string? Notes { get; set; }
-}
-
-public class CreateMembershipResponse
-{
-    public Guid Id { get; set; }
-    public string Cdk { get; set; } = string.Empty;
-    public DateTimeOffset EndTime { get; set; }
-    public string Message { get; set; } = string.Empty;
-}

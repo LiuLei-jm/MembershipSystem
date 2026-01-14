@@ -1,19 +1,17 @@
 ﻿
-using MembershipSystemAPI.Endpoints.FilePushes;
+using MembershipSystemAPI.CQRS.MediatRCommands;
+using MembershipSystemAPI.DTOs;
+using MediatR;
 
 namespace MembershipSystemAPI.Endpoints.Memberships;
 
 public class DeleteMembershipEndpoint : Endpoint<DeleteMembershipRequest, DeleteMembershipResponse>
 {
-    private readonly IHubContext<FilePushHub> _hubContext;
-    private readonly MemDbContext _dbContext;
-    private readonly IPathService _pathService;
+    private readonly IMediator _mediator;
 
-    public DeleteMembershipEndpoint(MemDbContext dbContext, IHubContext<FilePushHub> hubContext, IPathService pathService)
+    public DeleteMembershipEndpoint(IMediator mediator)
     {
-        _dbContext = dbContext;
-        _hubContext = hubContext;
-        _pathService = pathService;
+        _mediator = mediator;
     }
     public override void Configure()
     {
@@ -30,55 +28,33 @@ public class DeleteMembershipEndpoint : Endpoint<DeleteMembershipRequest, Delete
     }
     public override async Task HandleAsync(DeleteMembershipRequest req, CancellationToken ct)
     {
-        var response = new DeleteMembershipResponse();
         var cardId = Route<Guid>("cardId");
         if (cardId == Guid.Empty)
         {
-            response.Message = "无效的会员卡ID:{cardId}";
-            await Send.ResponseAsync(response, 404, ct);
+            await Send.ResponseAsync(new DeleteMembershipResponse("无效的会员卡ID:{cardId}"), 404, ct);
             return;
         }
         var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
         if (!Guid.TryParse(currentUserId, out var currentUserGuid))
         {
-            response.Message = $"用户不存在：{currentUserId}";
-            await Send.ResponseAsync(response, 404, ct);
+            await Send.ResponseAsync(new DeleteMembershipResponse($"用户不存在：{currentUserId}"), 404, ct);
             return;
         }
-        var card = await _dbContext.MembershipCards.FirstOrDefaultAsync(c => c.Id == cardId && c.User.Id == currentUserGuid);
-        if (card == null)
+
+        var command = new DeleteMembershipCommand(
+            CardId: cardId,
+            UserId: currentUserGuid
+        );
+
+        var result = await _mediator.Send(command, ct);
+
+        if (result.Success)
         {
-            response.Message = $"未找到指定的会员卡：{cardId}";
-            await Send.ResponseAsync(response, 404, ct);
-            return;
+            await Send.OkAsync(new DeleteMembershipResponse(result.Message), ct);
         }
-
-        var apiKeyObj = await _dbContext.ApiKeys.Include(a => a.User).FirstOrDefaultAsync(a => a.UserId == currentUserGuid, ct);
-        if (apiKeyObj != null)
-        { 
-            var pathConfig = await _pathService.GetUserPathConfigurationAsync(currentUserGuid);
-            var command = new SendDeleteRequest
-            {
-                FilePath = Path.Combine(pathConfig.BasePath, pathConfig.MembershipCardFilePath),
-                ContentToRemove = card.Cdk,
-                LogMessage = $"删除会员卡 {card.Cdk} "
-            };
-            await _hubContext.Clients.User(apiKeyObj.Key).SendAsync("ReceiveDeleteCommand", command);
+        else
+        {
+            await Send.ResponseAsync(new DeleteMembershipResponse(result.Message), 404, ct);
         }
-        _dbContext.MembershipCards.Remove(card);
-        await _dbContext.SaveChangesAsync(ct);
-        response.Message = "会员卡删除成功";
-        await Send.OkAsync(response, ct);
     }
-}
-
-public class DeleteMembershipRequest
-{
-    public Guid CardId { get; set; }
-
-}
-
-public class DeleteMembershipResponse
-{
-    public string Message { get; set; } = string.Empty;
 }

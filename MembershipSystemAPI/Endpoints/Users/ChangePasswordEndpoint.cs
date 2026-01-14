@@ -1,15 +1,13 @@
-﻿
+﻿using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.Users;
 
 public class ChangePasswordEndpoint : Endpoint<ChangePasswordRequest, ChangePasswordResponse>
 {
-    private readonly MemDbContext _dbContext;
-    private readonly ILogger<ChangePasswordEndpoint> _logger;
-
-    public ChangePasswordEndpoint(MemDbContext dbContext, ILogger<ChangePasswordEndpoint> logger)
+    private readonly IMediator _mediator;
+    public ChangePasswordEndpoint(IMediator mediator)
     {
-        _dbContext = dbContext;
-        _logger = logger;
+        _mediator = mediator;
     }
 
     public override void Configure()
@@ -28,50 +26,38 @@ public class ChangePasswordEndpoint : Endpoint<ChangePasswordRequest, ChangePass
 
     public override async Task HandleAsync(ChangePasswordRequest req, CancellationToken ct)
     {
-        var response = new ChangePasswordResponse();
         var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
-        if (!Guid.TryParse(currentUserId, out var currentUserGuid))
+        if (Guid.TryParse(currentUserId, out var userId))
         {
-            _logger.LogWarning($"无效的用户 ID. {currentUserId}");
-            response.UserId = Guid.Empty;
-            response.Message = $"无效的用户 ID: {currentUserId}";
-            await Send.ResponseAsync(response, 400, ct);
+            if (userId == Guid.Empty)
+            {
+                await Send.UnauthorizedAsync(ct);
+                return;
+            }
+        }
+        else
+        {
+            await Send.UnauthorizedAsync(ct);
             return;
         }
-
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == currentUserGuid, ct);
-        if (user == null)
+        try
         {
-            _logger.LogWarning($"用户未找到. ID: {currentUserGuid}");
-            response.UserId = currentUserGuid;
-            response.Message = $"用户未找到: {currentUserGuid}";
-            await Send.ResponseAsync(response, 404, ct);
+            var command = new ChangePasswordCommand(userId, req.CurrentPassword, req.NewPassword);
+            var result = await _mediator.Send(command, ct);
+            if (!result)
+            {
+                await Send.ResponseAsync(new ChangePasswordResponse("原密码错误"), 400, ct);
+                return;
+            }
+            await Send.OkAsync(new ChangePasswordResponse("密码修改成功"), ct);
+        }
+        catch (Exception ex)
+        {
+            var response = new ChangePasswordResponse($"密码修改失败:{ex.Message}");
+            await Send.ResponseAsync(response, 500, ct);
             return;
         }
-        if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.PasswordHash))
-        {
-            response.UserId = currentUserGuid;
-            response.Message = "当前密码不正确";
-            await Send.ResponseAsync(response, 400, ct);
-            return;
-        }
-
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
-        await _dbContext.SaveChangesAsync(ct);
-        response.UserId = user.Id;
-        response.Message = "密码修改成功";
-        await Send.OkAsync(response, ct);
     }
 }
 
-public class ChangePasswordRequest
-{
-    public string CurrentPassword { get; set; } = string.Empty;
-    public string NewPassword { get; set; } = string.Empty;
-}
 
-public class ChangePasswordResponse
-{
-    public Guid UserId { get; set; }
-    public string Message { get; set; } = string.Empty;
-}

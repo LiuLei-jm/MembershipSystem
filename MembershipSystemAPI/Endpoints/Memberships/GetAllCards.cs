@@ -1,12 +1,17 @@
-﻿namespace MembershipSystemAPI.Endpoints.Memberships;
+﻿using MembershipSystemAPI.CQRS.MediatRQueries;
+using MembershipSystemAPI.Domain.Entities;
+using MediatR;
+using MembershipSystemAPI.DTOs;
 
-public class GetAllCardsEndpoint : Endpoint<EmptyRequest, List<MembershipCard>>
+namespace MembershipSystemAPI.Endpoints.Memberships;
+
+public class GetAllCardsEndpoint : Endpoint<EmptyRequest, List<MembershipCardSummaryResponse>>
 {
-    private readonly MemDbContext _dbContext;
+    private readonly IMediator _mediator;
 
-    public GetAllCardsEndpoint(MemDbContext dbContext)
+    public GetAllCardsEndpoint(IMediator mediator)
     {
-        _dbContext = dbContext;
+        _mediator = mediator;
     }
     public override void Configure()
     {
@@ -22,13 +27,17 @@ public class GetAllCardsEndpoint : Endpoint<EmptyRequest, List<MembershipCard>>
     }
     public override async Task HandleAsync(EmptyRequest req, CancellationToken ct)
     {
-        var userIdClaim = User.FindFirst("UserId");
-        var userId = Guid.Parse(userIdClaim!.Value);
-        var cards = await _dbContext.MembershipCards
-            .Where(c => c.UserId == userId)
-            .ToListAsync(ct);
-        var orderedCards = cards.OrderByDescending(c => c.StartTime).ToList();
-        await Send.OkAsync(orderedCards, ct);
+
+        var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+        if(!Guid.TryParse(currentUserId, out Guid currentUserGuid))
+        {
+            await Send.ErrorsAsync( 401, ct);
+            return;
+        }
+
+        var query = new GetAllMembershipCardsQuery(UserId: currentUserGuid);
+        var cards = await _mediator.Send(query, ct);
+        await Send.OkAsync(cards, ct);
     }
 }
 

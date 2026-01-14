@@ -1,17 +1,16 @@
-﻿
+﻿using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.Admins;
 
 public class ToggleUserStatus : Endpoint<ToggleStatusRequest, ToggleStatusResponse>
 {
+    private readonly IMediator _mediator;
     private readonly ILogger<ToggleUserStatus> _logger;
-    private readonly MemDbContext _dbContext;
-
-    public ToggleUserStatus(ILogger<ToggleUserStatus> logger, MemDbContext dbContext)
+    public ToggleUserStatus(IMediator mediator, ILogger<ToggleUserStatus> logger)
     {
+        _mediator = mediator;
         _logger = logger;
-        _dbContext = dbContext;
     }
-
 
     public override void Configure()
     {
@@ -30,44 +29,23 @@ public class ToggleUserStatus : Endpoint<ToggleStatusRequest, ToggleStatusRespon
 
     public override async Task HandleAsync(ToggleStatusRequest req, CancellationToken ct)
     {
-        var userIdToToggle = Route<Guid>("UserId");
-        var userToToggle = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userIdToToggle, ct);
-
-        if (userToToggle == null)
+        try
         {
-            await Send.NotFoundAsync(ct);
+            var command = new ToggleStatusCommand(req.UserId, req.IsActive);
+            var result = await _mediator.Send(command, ct);
+            if (!result.Success)
+            {
+                _logger.LogWarning("切换用户状态失败: {Message}", result.Message);
+                await Send.ErrorsAsync(400, ct);
+            }
+            await Send.OkAsync(new ToggleStatusResponse(req.UserId, req.IsActive, result.Message), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "切换用户状态时发生错误");
+            await Send.ErrorsAsync(500, ct);
             return;
         }
-
-        var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
-        if (currentUserId == userIdToToggle.ToString())
-        {
-            _logger.LogWarning("管理员尝试禁用自己，操作被阻止。");
-            await Send.ErrorsAsync(400, ct);
-            return;
-        }
-
-        userToToggle.IsActive = req.IsActive;
-        await _dbContext.SaveChangesAsync(ct);
-        var response = new ToggleStatusResponse
-        {
-            UserId = userToToggle.Id,
-            IsActive = userToToggle.IsActive,
-            Message = userToToggle.IsActive ? "用户已启用" : "用户已禁用"
-        };
-        await Send.OkAsync(response, ct);
     }
 }
 
-public class ToggleStatusRequest
-{
-    public Guid UserId { get; set; }
-    public bool IsActive { get; set; }
-}
-
-public class ToggleStatusResponse
-{
-    public Guid UserId { get; set; }
-    public bool IsActive { get; set; }
-    public string Message { get; set; } = string.Empty;
-}

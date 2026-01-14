@@ -1,13 +1,18 @@
 ﻿
+using MembershipSystemAPI.CQRS.MediatRQueries;
+using MembershipSystemAPI.Domain.Entities;
+using MediatR;
+using MembershipSystemAPI.DTOs;
+
 namespace MembershipSystemAPI.Endpoints.Memberships;
 
-public class GetUnexpiredCardsEndpoint : Endpoint<EmptyRequest, List<MembershipCard>>
+public class GetUnexpiredCardsEndpoint : Endpoint<EmptyRequest, List<MembershipCardSummaryResponse>>
 {
-    private readonly MemDbContext _dbContext;
+    private readonly IMediator _mediator;
 
-    public GetUnexpiredCardsEndpoint(MemDbContext dbContext)
+    public GetUnexpiredCardsEndpoint(IMediator mediator)
     {
-        _dbContext = dbContext;
+        _mediator = mediator;
     }
     public override void Configure()
     {
@@ -23,12 +28,16 @@ public class GetUnexpiredCardsEndpoint : Endpoint<EmptyRequest, List<MembershipC
     }
     public override async Task HandleAsync(EmptyRequest req, CancellationToken ct)
     {
-        var userIdClaim = User.FindFirst("UserId");
-        var userId = Guid.Parse(userIdClaim!.Value);
-        var cards = await _dbContext.MembershipCards
-            .Where(c => c.UserId == userId && !c.IsExpiredNotificationSent)
-            .ToListAsync(ct);
-        await Send.OkAsync(cards, ct);
+        var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
+        if(!Guid.TryParse(currentUserId, out Guid currentUserGuid))
+        {
+            await Send.ErrorsAsync( 401, ct);
+            return;
+        }
 
+        var query = new GetUnexpiredMembershipCardsQuery(UserId: currentUserGuid);
+        var cards = await _mediator.Send(query, ct);
+
+        await Send.OkAsync(cards, ct);
     }
 }

@@ -1,13 +1,16 @@
-﻿namespace MembershipSystemAPI.Endpoints.Users;
+﻿using MembershipSystemAPI.DTOs;
+
+namespace MembershipSystemAPI.Endpoints.Users;
+
 
 [EnableRateLimiting("register-policy")]
 public class RegisterEndpoint : Endpoint<RegisterRequest, EmptyResponse>
 {
-    private readonly MemDbContext _dbContext;
+    private readonly IMediator _mediator;
 
-    public RegisterEndpoint(MemDbContext dbContext)
+    public RegisterEndpoint(IMediator mediator)
     {
-        _dbContext = dbContext;
+        _mediator = mediator;
     }
 
     override public void Configure()
@@ -24,29 +27,17 @@ public class RegisterEndpoint : Endpoint<RegisterRequest, EmptyResponse>
     }
     public override async Task HandleAsync(RegisterRequest req, CancellationToken ct)
     {
-        var userExists = _dbContext.Users.Any(u => u.Username == req.Username);
-        if (userExists)
+
+        var command = new RegisterUserCommand(req.Username, req.Password);
+        var result = await _mediator.Send(command, ct);
+
+        if (!result.Success)
         {
             await Send.ErrorsAsync(409, ct);
             return;
         }
-        var newUser = new User
-        {
-            Username = req.Username,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-            Role = "User",
-            IsActive = true,
-            CreatedAt = DateTimeOffset.UtcNow,
-            ApiKey = new ApiKey()
-        };
-        _dbContext.Users.Add(newUser);
-        await _dbContext.SaveChangesAsync(ct);
+
         await Send.OkAsync(ct);
     }
 }
 
-public class RegisterRequest
-{
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-}

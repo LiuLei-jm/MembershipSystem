@@ -1,17 +1,19 @@
 ﻿
+using MembershipSystemAPI.CQRS.MediatRCommands;
+using MembershipSystemAPI.DTOs;
+using MediatR;
+
 namespace MembershipSystemAPI.Endpoints.Memberships;
 
 public class UpdateMembershipEndpoint : Endpoint<UpdateMembershipRequest, EmptyResponse>
 {
-    private readonly MemDbContext _dbContext;
+    private readonly IMediator _mediator;
     private readonly ILogger<UpdateMembershipEndpoint> _logger;
-    private readonly ICdkService _cdkService;
 
-    public UpdateMembershipEndpoint(MemDbContext dbContext, ILogger<UpdateMembershipEndpoint> logger, ICdkService cdkService)
+    public UpdateMembershipEndpoint(IMediator mediator, ILogger<UpdateMembershipEndpoint> logger)
     {
-        _dbContext = dbContext;
+        _mediator = mediator;
         _logger = logger;
-        _cdkService = cdkService;
     }
     public override void Configure()
     {
@@ -31,40 +33,30 @@ public class UpdateMembershipEndpoint : Endpoint<UpdateMembershipRequest, EmptyR
     {
         var cardId = Route<Guid>("cardId");
         var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "UserId")?.Value;
-        var card = await _dbContext.MembershipCards.FirstOrDefaultAsync(c => c.Id == cardId && c.UserId.ToString() == currentUserId);
-        if (card == null)
+        if (!Guid.TryParse(currentUserId, out var currentUserGuid))
         {
             await Send.NotFoundAsync(ct);
             return;
         }
-        if (req.DurationInDays is not null && req.DurationInDays > 0)
-        {
-            card.DurationInDays = req.DurationInDays.Value;
-            card.EndTime = card.StartTime.AddDays(req.DurationInDays.Value);
-        }
-        if (req.Amount is not null && req.Amount > 0)
-        {
-            card.Amount = req.Amount.Value;
-        }
-        if (req.StartTime is not null)
-        {
-            card.StartTime = req.StartTime.Value;
-            card.EndTime = card.StartTime.AddDays(card.DurationInDays);
-        }
-        if (!string.IsNullOrWhiteSpace(req.Notes))
-        {
-            card.Notes = req.Notes;
-        }
-        await _dbContext.SaveChangesAsync(ct);
 
-        await Send.OkAsync(new EmptyResponse(), ct);
+        var command = new UpdateMembershipCommand(
+            CardId: cardId,
+            UserId: currentUserGuid,
+            DurationInDays: req.DurationInDays,
+            Amount: req.Amount,
+            StartTime: req.StartTime,
+            Notes: req.Notes
+        );
+
+        var result = await _mediator.Send(command, ct);
+
+        if (result.Success)
+        {
+            await Send.OkAsync(new EmptyResponse(), ct);
+        }
+        else
+        {
+            await Send.NotFoundAsync(ct);
+        }
     }
-}
-
-public class UpdateMembershipRequest
-{
-    public int? DurationInDays { get; set; }
-    public decimal? Amount { get; set; }
-    public DateTimeOffset? StartTime { get; set; }
-    public string? Notes { get; set; }
 }

@@ -1,28 +1,70 @@
-using MembershipSystemAPI.Models;
-using Microsoft.EntityFrameworkCore;
+using MembershipSystemAPI.Data;
+using MembershipSystemAPI.Domain.Entities;
 
 namespace MembershipSystemAPI.Services;
 
+/// <summary>
+/// 路径服务接口，提供路径配置和文件路径处理功能
+/// </summary>
 public interface IPathService
 {
+    /// <summary>
+    /// 获取用户的路径配置
+    /// </summary>
+    /// <param name="userId">用户ID</param>
+    /// <returns>路径配置信息</returns>
     Task<PathConfiguration> GetUserPathConfigurationAsync(Guid userId);
+
+    /// <summary>
+    /// 更新用户的路径配置
+    /// </summary>
+    /// <param name="userId">用户ID</param>
+    /// <param name="request">路径配置更新请求</param>
+    /// <returns>更新后的路径配置</returns>
     Task<PathConfiguration> UpdateUserPathConfigurationAsync(Guid userId, PathConfigurationUpdateRequest request);
+
+    /// <summary>
+    /// 获取完整的文件路径
+    /// </summary>
+    /// <param name="userId">用户ID</param>
+    /// <param name="fileName">文件名</param>
+    /// <returns>完整文件路径</returns>
     string GetFullFilePath(Guid userId, string fileName);
+
+    /// <summary>
+    /// 验证路径是否有效
+    /// </summary>
+    /// <param name="path">要验证的路径</param>
+    /// <returns>路径是否有效</returns>
     bool IsPathValid(string path);
 }
 
+/// <summary>
+/// 路径服务实现类，处理用户路径配置和文件路径安全验证
+/// </summary>
 public class PathService : IPathService
 {
     private readonly MemDbContext _dbContext;
     private readonly ILogger<PathService> _logger;
 
+    /// <summary>
+    /// 初始化路径服务
+    /// </summary>
+    /// <param name="dbContext">数据库上下文</param>
+    /// <param name="logger">日志记录器</param>
     public PathService(MemDbContext dbContext, ILogger<PathService> logger)
     {
         _dbContext = dbContext;
         _logger = logger;
     }
 
-    public async Task<PathConfiguration> GetUserPathConfigurationAsync(Guid userId)
+    /// <summary>
+/// 获取用户的路径配置
+/// </summary>
+/// <param name="userId">用户ID</param>
+/// <returns>路径配置信息</returns>
+/// <exception cref="ArgumentException">当用户不存在时抛出</exception>
+public async Task<PathConfiguration> GetUserPathConfigurationAsync(Guid userId)
     {
         var user = await _dbContext.Users
             .Include(u => u.PathConfiguration)
@@ -30,13 +72,20 @@ public class PathService : IPathService
 
         if (user == null)
         {
-            throw new ArgumentException("�û�û���ҵ�", nameof(userId));
+            throw new ArgumentException("用户不存在:", nameof(userId));
         }
 
-        return user.PathConfiguration;
+        return user.PathConfiguration!;
     }
 
-    public async Task<PathConfiguration> UpdateUserPathConfigurationAsync(Guid userId, PathConfigurationUpdateRequest request)
+    /// <summary>
+/// 更新用户的路径配置
+/// </summary>
+/// <param name="userId">用户ID</param>
+/// <param name="request">路径配置更新请求</param>
+/// <returns>更新后的路径配置</returns>
+/// <exception cref="ArgumentException">当用户不存在或路径无效时抛出</exception>
+public async Task<PathConfiguration> UpdateUserPathConfigurationAsync(Guid userId, PathConfigurationUpdateRequest request)
     {
         // Validate request
         request.Validate();
@@ -47,13 +96,19 @@ public class PathService : IPathService
 
         if (user == null)
         {
-            throw new ArgumentException("�û�û���ҵ�", nameof(userId));
+            throw new ArgumentException("用户不存在:", nameof(userId));
         }
 
         // Validate paths
         if (!IsPathValid(request.BasePath))
         {
-            throw new ArgumentException("��Ч�Ļ���·��", nameof(request.BasePath));
+            throw new ArgumentException("此路径无效:", nameof(request.BasePath));
+        }
+
+        if (user.PathConfiguration == null)
+        {
+            user.PathConfiguration = PathConfiguration.Create(userId);
+            _dbContext.PathConfigurations.Add(user.PathConfiguration);
         }
 
         // Update path configuration
@@ -66,7 +121,13 @@ public class PathService : IPathService
         return user.PathConfiguration;
     }
 
-    public string GetFullFilePath(Guid userId, string fileName)
+    /// <summary>
+/// 获取完整的文件路径
+/// </summary>
+/// <param name="userId">用户ID</param>
+/// <param name="fileName">文件名</param>
+/// <returns>完整文件路径</returns>
+public string GetFullFilePath(Guid userId, string fileName)
     {
         // Fetch user with path configuration
         var user = _dbContext.Users
@@ -82,25 +143,25 @@ public class PathService : IPathService
         // Validate file name to prevent path traversal
         if (string.IsNullOrWhiteSpace(fileName))
         {
-            throw new ArgumentException("�ļ�������Ϊ��.", nameof(fileName));
+            throw new ArgumentException("文件名不能为空:", nameof(fileName));
         }
 
         // Ensure fileName doesn't contain path traversal characters or directory separators
         if (fileName.Contains("..") || fileName.Contains("/") || fileName.Contains("\\") || fileName.Contains(":"))
         {
-            throw new ArgumentException("��Ч���ļ��� - ���ܰ���·���ָ���������ַ�", nameof(fileName));
+            throw new ArgumentException("无效的文件名 - 不能包含路径遍历字符或目录分隔符.", nameof(fileName));
         }
 
         // Validate that the file name doesn't exceed reasonable limits
         if (fileName.Length > 255)
         {
-            throw new ArgumentException("�ļ�������̫��.", nameof(fileName));
+            throw new ArgumentException("文件名不能太长.", nameof(fileName));
         }
 
         // Validate that the base path is still valid
-        if (!IsPathValid(user.PathConfiguration.BasePath))
+        if (!IsPathValid(user.PathConfiguration!.BasePath))
         {
-            _logger.LogWarning($"�û� {userId} ������Ч�Ļ���·��: {user.PathConfiguration.BasePath}");
+            _logger.LogWarning($"用户 {userId} 具有无效的基本路径: {user.PathConfiguration.BasePath}");
             // Fall back to default path
             return Path.Combine("D:", fileName);
         }
@@ -120,21 +181,26 @@ public class PathService : IPathService
             }
             if (fullPathRoot != basePathRoot)
             {
-                _logger.LogWarning($"��鵽�û� {userId} ��·����������: {fullPath}");
-                throw new ArgumentException("��Ч��·�����", nameof(fileName));
+                _logger.LogWarning($"检查到用户 {userId} 的路径遍历尝试: {fullPath}");
+                throw new ArgumentException("无效路径组合", nameof(fileName));
             }
 
             return fullPath;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"�û����·������ {userId}: ����·��={user.PathConfiguration.BasePath}, �ļ���={fileName}");
+            _logger.LogError(ex, $"用户组合路径错误 {userId}: 基本路径={user.PathConfiguration.BasePath}, 文件名={fileName}");
             // Fall back to default path
             return Path.Combine("D:", fileName);
         }
     }
 
-    public bool IsPathValid(string path)
+    /// <summary>
+/// 验证路径是否有效
+/// </summary>
+/// <param name="path">要验证的路径</param>
+/// <returns>路径是否有效</returns>
+public bool IsPathValid(string path)
     {
         // Security check: prevent path traversal attacks
         if (string.IsNullOrWhiteSpace(path))

@@ -1,4 +1,6 @@
-﻿namespace MembershipSystemAPI.Data;
+﻿using MembershipSystemAPI.Domain.Entities;
+
+namespace MembershipSystemAPI.Data;
 
 public class MemDbContext : DbContext
 {

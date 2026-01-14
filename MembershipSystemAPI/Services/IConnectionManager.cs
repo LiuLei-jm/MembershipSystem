@@ -1,4 +1,4 @@
-﻿using ConnectionInfo = MembershipSystemAPI.Models.ConnectionInfo;
+﻿using ConnectionInfo = MembershipSystemAPI.Domain.Entities.ConnectionInfo;
 
 namespace MembershipSystemAPI.Services;
 
