@@ -118,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Plus, Refresh, Setting, Search, Delete } from '@element-plus/icons-vue'
 import { useMembershipStore } from '@/stores/membership'
 import type { MemberCard } from '@/types/card'
@@ -137,6 +137,7 @@ const dialogTitle = ref<string>('创建新卡')
 const selectedCard = ref<MemberCard | null>(null)
 const currentPage = ref<number>(1)
 const pageSize = ref<number>(10)
+const isMobile = ref(false)
 
 // 筛选表单状态
 const filterForm = ref({
@@ -145,10 +146,24 @@ const filterForm = ref({
   dateRange: [] as (Date | undefined)[],
 })
 
+// Function to check if screen is mobile
+const checkIfMobile = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
 onMounted(() => {
+  // Initialize mobile detection
+  checkIfMobile()
+  window.addEventListener('resize', checkIfMobile)
+
   store.fetchCards().finally(() => {
     loading.value = false
   })
+})
+
+// Clean up event listener
+onUnmounted(() => {
+  window.removeEventListener('resize', checkIfMobile)
 })
 
 const handleRefresh = () => {
@@ -346,7 +361,7 @@ const formatDate = (dateStr: string) => {
 
 .filter-controls {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 15px;
   margin-bottom: 15px;
   padding: 15px;
@@ -354,10 +369,19 @@ const formatDate = (dateStr: string) => {
   border-radius: 8px;
 }
 
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+}
+
 .filter-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  min-width: 200px;
 }
 
 .filter-label {
@@ -371,27 +395,11 @@ const formatDate = (dateStr: string) => {
   display: flex;
   gap: 8px;
   margin-left: auto;
+  margin-top: 10px;
 }
 
-.filter-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  background-color: #fff;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-}
-
-.total-amount {
-  font-weight: 500;
-  color: #333;
-}
-
-.amount-number {
-  font-weight: 700;
-  color: #409eff;
-  font-size: 16px;
+.alert {
+  margin-bottom: 20px;
 }
 
 .pagination-container {
@@ -402,7 +410,7 @@ const formatDate = (dateStr: string) => {
 }
 
 .card-button {
-  margin: 0;
+  margin: 0 2px;
 }
 
 .total-summary {
@@ -411,20 +419,15 @@ const formatDate = (dateStr: string) => {
 
 .total-summary-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   font-weight: 500;
 }
 
-.total-cards {
-  color: #909399;
-  font-weight: normal;
-}
-
-.total-details {
+.total-summary-content {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 15px;
 }
 
 .total-amount-main {
@@ -442,5 +445,92 @@ const formatDate = (dateStr: string) => {
 
 .total-hint {
   line-height: 1;
+}
+
+/* Responsive styles */
+@media (min-width: 768px) {
+  .filter-controls {
+    flex-direction: row;
+  }
+
+  .filter-row {
+    flex-wrap: nowrap;
+    flex: 1;
+  }
+
+  .filter-item {
+    min-width: auto;
+  }
+
+  .filter-actions {
+    margin-top: 0;
+    margin-left: auto;
+  }
+
+  .total-summary-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .total-summary-content {
+    align-items: center;
+  }
+
+  .mobile-action-buttons {
+    display: none;
+  }
+
+  .desktop-action-buttons {
+    display: flex;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 767px) {
+  .header-buttons {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .filter-item {
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 100%;
+  }
+
+  .filter-label {
+    margin-bottom: 5px;
+  }
+
+  .filter-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .card-button {
+    margin: 2px;
+  }
+
+  .total-summary-header {
+    width: 100%;
+  }
+
+  .mobile-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .desktop-action-buttons {
+    display: none;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  .el-table {
+    min-width: 800px;
+  }
 }
 </style>

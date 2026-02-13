@@ -12,12 +12,12 @@
       type="error"
       show-icon
       :closable="false"
-      style="margin-bottom: 20px"
+      class="alert"
     />
 
-    <el-form :model="form" label-width="120px" v-loading="loading">
+    <el-form :model="form" :label-width="isMobile ? 'auto' : '120px'" v-loading="loading">
       <el-form-item label="当前通讯密钥:">
-        <el-input v-model="form.apiKey" type="textarea" :rows="6" readonly class="key-display" />
+        <el-input v-model="form.apiKey" type="textarea" :rows="isMobile ? 4 : 6" readonly class="key-display" />
       </el-form-item>
 
       <el-form-item label="创建时间:">
@@ -25,12 +25,14 @@
       </el-form-item>
 
       <el-form-item>
-        <el-button type="primary" @click="copyKey">复制密钥</el-button>
-        <el-button type="warning" @click="updateKey">更新密钥</el-button>
+        <div class="button-group">
+          <el-button type="primary" @click="copyKey">复制密钥</el-button>
+          <el-button type="warning" @click="updateKey">更新密钥</el-button>
+        </div>
       </el-form-item>
     </el-form>
 
-    <el-dialog v-model="showConfirmDialog" title="确认更新密钥" width="30%">
+    <el-dialog v-model="showConfirmDialog" title="确认更新密钥" :width="dialogWidth">
       <span>更新密钥将使当前密钥失效，确定要继续吗？</span>
       <template #footer>
         <span class="dialog-footer">
@@ -43,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '@/services/api'
 import type { ApiKeyResponse, GenerateApiKeyResponse } from '@/types/api'
@@ -61,6 +63,17 @@ const form = ref<ApiKeyForm>({
 const loading = ref<boolean>(false)
 const error = ref<string | null>(null)
 const showConfirmDialog = ref<boolean>(false)
+const isMobile = ref(false)
+
+// Function to check if screen is mobile
+const checkIfMobile = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+// Dialog width based on screen size
+const dialogWidth = computed(() => {
+  return isMobile.value ? '90%' : '30%'
+})
 
 const fetchApiKey = async () => {
   try {
@@ -118,7 +131,16 @@ const confirmUpdateKey = async () => {
 }
 
 onMounted(() => {
+  // Initialize mobile detection
+  checkIfMobile()
+  window.addEventListener('resize', checkIfMobile)
+
   fetchApiKey()
+})
+
+// Clean up event listener
+onUnmounted(() => {
+  window.removeEventListener('resize', checkIfMobile)
 })
 </script>
 
@@ -127,15 +149,49 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.alert {
+  margin-bottom: 20px;
 }
 
 .key-display {
   font-family: 'Courier New', monospace;
 }
 
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+/* Responsive styles */
+@media (max-width: 767px) {
+  .button-group {
+    flex-direction: column;
+  }
+
+  .el-button {
+    width: 100%;
+  }
+
+  .el-dialog {
+    width: 95% !important;
+    margin-top: 20px;
+  }
+}
+
+@media (min-width: 768px) {
+  .button-group {
+    flex-direction: row;
+  }
 }
 </style>

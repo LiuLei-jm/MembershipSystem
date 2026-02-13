@@ -1,0 +1,145 @@
+/* Responsive Design Styles */
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Responsive utility classes */
+.responsive-container {
+  width: 100%;
+  padding: 0 15px;
+  margin: 0 auto;
+}
+
+/* Hide elements on mobile */
+.hide-mobile {
+  display: none;
+}
+
+/* Hide elements on desktop */
+.hide-desktop {
+  display: none;
+}
+
+/* Responsive table styles */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive grid adjustments */
+.grid-responsive {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.grid-responsive > * {
+  flex: 1;
+  min-width: 280px;
+}
+
+/* Card adjustments for mobile */
+.el-card {
+  margin: 10px;
+}
+
+/* Button adjustments */
+.el-button {
+  font-size: 14px;
+}
+
+/* Input adjustments */
+.el-input,
+.el-date-editor,
+.el-select {
+  width: 100%;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 767px) {
+  .hide-mobile {
+    display: block;
+  }
+
+  .hide-desktop {
+    display: block;
+  }
+
+  .responsive-container {
+    padding: 0 10px;
+  }
+
+  .el-card {
+    margin: 5px;
+  }
+
+  .el-button {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .el-pagination ::v-deep(.el-pagination__total),
+  .el-pagination ::v-deep(.el-pagination__sizes),
+  .el-pagination ::v-deep(.el-pagination__ jumper) {
+    margin: 5px 0;
+  }
+
+  .grid-responsive > * {
+    min-width: 100%;
+  }
+
+  /* Adjust table for mobile */
+  .el-table {
+    font-size: 12px;
+  }
+
+  .el-table ::v-deep(.el-table__cell) {
+    padding: 4px 0;
+  }
+
+  /* Adjust dialog for mobile */
+  .el-dialog {
+    margin-top: 10vh !important;
+    width: 95% !important;
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hide-mobile {
+    display: block;
+  }
+
+  .el-card {
+    margin: 8px;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  .hide-desktop {
+    display: block;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

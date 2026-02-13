@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 import LoginView from '../views/LoginView.vue'
@@ -45,14 +45,14 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes,
 })
 
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
-  const requiresAdmin = to.matched.some((record) => record.meta.requresAdmin)
+  const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin)
   if (requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login', query: { redirect: to.fullPath } })
   } else if (requiresAdmin && !authStore.isAdmin) {
