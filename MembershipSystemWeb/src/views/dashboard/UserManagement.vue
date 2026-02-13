@@ -9,48 +9,57 @@
 
     <!-- 搜索栏 -->
     <div class="search-bar">
-      <el-input v-model="searchKeyword" placeholder="搜索用户名" style="width: 300px" clearable @input="handleSearch">
+      <el-input v-model="searchKeyword" placeholder="搜索用户名" clearable @input="handleSearch">
         <template #prefix>
           <el-icon>
             <Search />
           </el-icon>
         </template>
       </el-input>
-      <el-button type="primary" @click="loadUsers" style="margin-left: 10px">刷新</el-button>
+      <el-button type="primary" @click="loadUsers">刷新</el-button>
     </div>
 
     <!-- 用户列表 -->
-    <el-table :data="filteredUsers" v-loading="loading" style="width: 100%; margin-top: 20px" stripe>
-      <el-table-column prop="username" label="用户名" width="150" />
-      <el-table-column prop="role" label="角色" width="100">
+    <el-table :data="paginatedUsers" v-loading="loading" style="width: 100%; margin-top: 20px" stripe>
+      <el-table-column prop="username" label="用户名" :width="isMobile ? null : 150" />
+      <el-table-column prop="role" label="角色" :width="isMobile ? null : 100">
         <template #default="{ row }">
           <el-tag :type="row.role === 'Admin' ? 'danger' : 'info'">{{ row.role }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="isActive" label="状态" width="100">
+      <el-table-column prop="isActive" label="状态" :width="isMobile ? null : 100">
         <template #default="{ row }">
           <el-tag :type="row.isActive ? 'success' : 'warning'">{{
             row.isActive ? '激活' : '禁用'
             }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="创建时间" width="180">
+      <el-table-column prop="createdAt" label="创建时间" :width="isMobile ? null : 180">
         <template #default="{ row }">
           {{ formatDate(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column prop="lastLoginAt" label="最后登录" width="180">
+      <el-table-column prop="lastLoginAt" label="最后登录" :width="isMobile ? null : 180">
         <template #default="{ row }">
           {{ formatDate(row.lastLoginAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="200">
+      <el-table-column label="操作" :min-width="isMobile ? null : 200" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="handleResetPassword(row)">重置密码</el-button>
-          <el-button size="small" :type="row.isActive ? 'warning' : 'success'" @click="handleToggleStatus(row)">
-            {{ row.isActive ? '禁用' : '激活' }}
-          </el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <div class="mobile-action-buttons" v-if="isMobile">
+            <el-button size="small" @click="handleResetPassword(row)">重置密码</el-button>
+            <el-button size="small" :type="row.isActive ? 'warning' : 'success'" @click="handleToggleStatus(row)">
+              {{ row.isActive ? '禁用' : '激活' }}
+            </el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          </div>
+          <div class="desktop-action-buttons" v-else>
+            <el-button size="small" @click="handleResetPassword(row)">重置密码</el-button>
+            <el-button size="small" :type="row.isActive ? 'warning' : 'success'" @click="handleToggleStatus(row)">
+              {{ row.isActive ? '禁用' : '激活' }}
+            </el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -61,7 +70,7 @@
     </div>
 
     <!-- 新建用户对话框 -->
-    <el-dialog v-model="showCreateDialog" title="新建用户" width="400px">
+    <el-dialog v-model="showCreateDialog" title="新建用户" :width="dialogWidth">
       <el-form :model="createForm" :rules="createRules" ref="createFormRef" label-width="80px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="createForm.username" placeholder="请输入用户名" />
@@ -85,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
@@ -98,9 +107,10 @@ const loading = ref<boolean>(false)
 const searchKeyword = ref<string>('')
 const showCreateDialog = ref<boolean>(false)
 const createFormRef = ref<FormInstance>()
-const pageSize = ref<number>(1)
-const currentPage = ref<number>(10)
+const pageSize = ref<number>(10)
+const currentPage = ref<number>(1)
 const defaultPassword = '1qaz@WSX'
+const isMobile = ref(false)
 
 // 创建用户表单
 const createForm = ref({
@@ -109,18 +119,15 @@ const createForm = ref({
   role: 'User' as 'User' | 'Admin',
 })
 
-// 表单验证规则
-const createRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度应在 3 到 20 个字符', trigger: 'blur' },
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于 6 个字符', trigger: 'blur' },
-  ],
-  role: [{ required: true, message: '请选择角色', trigger: 'change' }],
+// Function to check if screen is mobile
+const checkIfMobile = () => {
+  isMobile.value = window.innerWidth < 768
 }
+
+// Dialog width based on screen size
+const dialogWidth = computed(() => {
+  return isMobile.value ? '90%' : '400px'
+})
 
 // 计算属性：过滤用户
 const filteredUsers = computed(() => {
@@ -128,6 +135,13 @@ const filteredUsers = computed(() => {
   return users.value.filter((user) =>
     user.username.toLowerCase().includes(searchKeyword.value.toLowerCase()),
   )
+})
+
+// 计算属性：分页数据
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredUsers.value.slice(start, end)
 })
 
 // 格式化日期
@@ -280,12 +294,6 @@ const handleCreate = async () => {
   }
 }
 
-const paginatedUsers = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredUsers.value.slice(start, end)
-})
-
 const handleSizeChange = (val: number) => {
   pageSize.value = val
   currentPage.value = 1
@@ -297,7 +305,16 @@ const handleCurrentChange = (val: number) => {
 
 // 组件挂载时加载用户列表
 onMounted(() => {
+  // Initialize mobile detection
+  checkIfMobile()
+  window.addEventListener('resize', checkIfMobile)
+
   loadUsers()
+})
+
+// Clean up event listener
+onUnmounted(() => {
+  window.removeEventListener('resize', checkIfMobile)
 })
 </script>
 
@@ -306,10 +323,13 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .search-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -327,5 +347,52 @@ onMounted(() => {
   justify-content: flex-end;
   align-items: center;
   margin-top: 20px;
+}
+
+.mobile-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.desktop-action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+/* Responsive styles */
+@media (max-width: 767px) {
+  .search-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobile-action-buttons {
+    display: flex;
+  }
+
+  .desktop-action-buttons {
+    display: none;
+  }
+
+  .el-dialog {
+    width: 95% !important;
+    margin-top: 20px;
+  }
+
+  .pagination-container {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-action-buttons {
+    display: none;
+  }
+
+  .desktop-action-buttons {
+    display: flex;
+  }
 }
 </style>
