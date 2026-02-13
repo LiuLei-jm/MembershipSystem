@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <staticContent>
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+    </staticContent>
+
+    <!--
+    这是一个简化的配置，如果主配置导致500错误，请使用此版本
+    如果IIS URL重写模块不可用，可使用默认文档作为后备
+    -->
+    <defaultDocument>
+      <files>
+        <clear />
+        <add value="index.html" />
+      </files>
+    </defaultDocument>
+
+    <!-- 检查是否存在重写模块后再启用 -->
+    <handlers>
+      <add name="StaticFileHandler" path="*" verb="*" type="System.Web.StaticFileHandler" resourceType="Unspecified" requireAccess="Read" preCondition="integratedMode" />
+    </handlers>
+  </system.webServer>
+</configuration>

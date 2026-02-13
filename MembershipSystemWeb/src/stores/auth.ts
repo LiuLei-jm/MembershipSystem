@@ -32,7 +32,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         api.register(credentials)
         ElMessage.success('注册成功，请登录')
-        router.push('/login')
+        router.push({ name: 'login' })
         return true
       } catch (error) {
         console.log(error)
