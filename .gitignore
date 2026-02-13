@@ -399,3 +399,5 @@ pnpm-lock.yaml
 *.db
 *.claude/
 *.vscode/
+*.db-shm
+*.db-wal
